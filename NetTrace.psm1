@@ -165,9 +165,15 @@ function Start-NetTraceCapture {
             Write-Host "Max Size: $MaxSizeMB MB" -ForegroundColor Yellow
         }
         
-        # Force stop any existing netsh trace to ensure clean start
-        & netsh trace stop 2>&1 | Out-Null
-        Start-Sleep -Seconds 2
+        # Create log file for all output FIRST
+        $script:CurrentLogFile = Join-Path $Path "NetTrace_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').log"
+        "NetTrace session started at $(Get-Date)" | Out-File -FilePath $script:CurrentLogFile -Encoding UTF8
+        "Command: NetTrace -File $MaxFiles -FileSize $MaxSizeMB -Path '$Path'" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
+        "=" * 60 | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
+        "" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
+        
+        # Force stop any existing netsh trace to ensure clean start (non-blocking)
+        Start-Job -ScriptBlock { & netsh trace stop 2>&1 | Out-Null } | Out-Null
         
         # Get computer name and calculate max size in bytes
         $computerName = $env:COMPUTERNAME
@@ -198,6 +204,9 @@ function Start-NetTraceCapture {
             # Create flag file to check if we should continue
             $flagFile = Join-Path $TracePath ".nettrace_running"
             "running" | Out-File -FilePath $flagFile -Force
+            
+            # Small delay to ensure any previous netsh stop command has completed
+            Start-Sleep -Seconds 1
             
             # Create files continuously with circular management
             while (Test-Path $flagFile) {
@@ -313,19 +322,10 @@ function Start-NetTraceCapture {
             
         } -ArgumentList $Path, $MaxFiles, $MaxSizeMB, $LogOutput, $script:CurrentLogFile
         
-        # Create log file for all output
-        $script:CurrentLogFile = Join-Path $Path "NetTrace_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').log"
-        "NetTrace session started at $(Get-Date)" | Out-File -FilePath $script:CurrentLogFile -Encoding UTF8
-        "Command: NetTrace -File $MaxFiles -FileSize $MaxSizeMB -Path '$Path'" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
-        "=" * 60 | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
-        "" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
-        
         Write-Host "Trace monitoring started in background." -ForegroundColor Green
         Write-Host "All output is being logged to: $($script:CurrentLogFile)" -ForegroundColor Cyan
         Write-Host "Use 'NetTrace -Stop' to stop the trace." -ForegroundColor Yellow
         Write-Host "You can monitor progress with: Get-Content '$($script:CurrentLogFile)' -Wait" -ForegroundColor Gray
-        
-        $script:TraceJob = $null
         
         # Return summary information
         return @{
@@ -403,7 +403,12 @@ function Stop-NetTraceCapture {
         
         # Clean up background job
         if ($script:TraceJob) {
-            Stop-Job -Job $script:TraceJob -ErrorAction SilentlyContinue
+            # Give the job a moment to see the flag file removal and stop gracefully
+            Start-Sleep -Milliseconds 500
+            
+            if ($script:TraceJob.State -eq 'Running') {
+                Stop-Job -Job $script:TraceJob -ErrorAction SilentlyContinue
+            }
             Remove-Job -Job $script:TraceJob -Force -ErrorAction SilentlyContinue
             $script:TraceJob = $null
         }
