@@ -7,14 +7,25 @@
     
 .DESCRIPTION
     A PowerShell module that provides functionality to perform network traces using Windows native Netsh utility.
-    Creates multiple trace files with automatic rotation based on file size limits.
+    Creates multiple trace files with automatic circular rotation based on file size limits. Features non-blocking
+    operation, comprehensive logging, and background monitoring for optimal performance.
     
 .NOTES
     File Name      : NetTrace.psm1
-    Author         : NetTrace Module
+    Version        : 1.0.0
+    Author         : Naveed Khan
+    Company        : Hogwarts
+    Copyright      : (c) 2025 Naveed Khan. All rights reserved.
+    License        : MIT License
     Prerequisite   : Windows 10/11 with Netsh utility
     Requires       : Administrator privileges
     Compatibility  : PowerShell 5.1 and PowerShell 7+
+    
+.LINK
+    https://github.com/khannaveed2020/NetTrace
+    
+.LINK
+    https://github.com/khannaveed2020/NetTrace/blob/main/README.md
 #>
 
 # Module variables
@@ -58,19 +69,36 @@ $script:CurrentLogFile = $null
     
 .EXAMPLE
     NetTrace -File 2 -FileSize 10 -Path "C:\Traces"
-    Creates up to 2 files of 10MB each. When the 3rd file is needed, deletes the 1st file.
+    
+    Creates up to 2 files of 10MB each in C:\Traces directory. When the 3rd file is needed, 
+    automatically deletes the oldest file (circular buffer management). Runs in background 
+    with non-blocking console operation.
     
 .EXAMPLE
     NetTrace -File 5 -FileSize 50 -Path "C:\Traces" -Verbose
-    Maintains 5 files of 50MB each with detailed output showing file management.
+    
+    Maintains 5 files of 50MB each with detailed verbose output showing file creation, 
+    rotation, and deletion activities. Perfect for monitoring file management behavior.
     
 .EXAMPLE
-    NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -LogNetshOutput
-    Same as first example but logs all netsh output to C:\Traces\netsh_trace.log
+    NetTrace -File 3 -FileSize 25 -Path "D:\NetworkTraces" -LogNetshOutput
+    
+    Creates 3 trace files of 25MB each in D:\NetworkTraces directory. All netsh trace 
+    output is logged to D:\NetworkTraces\netsh_trace.log for troubleshooting purposes.
     
 .EXAMPLE
     NetTrace -Stop
-    Stops the currently running trace.
+    
+    Stops the currently running network trace session and performs cleanup of background 
+    processes. Returns summary information about files created and rotated.
+    
+.EXAMPLE
+    # Start tracing with monitoring
+    NetTrace -File 4 -FileSize 20 -Path "C:\Traces"
+    Get-Content "C:\Traces\NetTrace_*.log" -Wait
+    
+    Starts network tracing and simultaneously monitors the log file for real-time activity.
+    Use Ctrl+C to stop monitoring, then use 'NetTrace -Stop' to stop the trace.
 #>
 function NetTrace {
     [CmdletBinding()]
