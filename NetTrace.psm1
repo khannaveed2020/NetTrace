@@ -37,6 +37,8 @@ $script:MaxSizeMB = 0
 $script:FilesCreated = 0
 $script:FilesRolled = 0
 $script:CurrentLogFile = $null
+$script:MonitorFlag = $null
+$script:CounterFile = $null
 
 <#
 .SYNOPSIS
@@ -103,24 +105,33 @@ $script:CurrentLogFile = $null
 function NetTrace {
     [CmdletBinding()]
     param(
-        [Parameter()]
+        [Parameter(Mandatory=$false)]
         [int]$File,
         
-        [Parameter()]
+        [Parameter(Mandatory=$false)]
         [int]$FileSize,
         
-        [Parameter()]
+        [Parameter(Mandatory=$false)]
         [string]$Path,
         
-        [Parameter()]
+        [Parameter(Mandatory=$false)]
         [switch]$Stop,
         
-        [Parameter()]
+        [Parameter(Mandatory=$false)]
         [switch]$LogNetshOutput
     )
     
     try {
-        # Handle stop command
+        # Check for administrator privileges
+        $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = [Security.Principal.WindowsPrincipal]$currentUser
+        $isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        
+        if (-not $isAdmin) {
+            throw "This module requires Administrator privileges. Please run PowerShell as Administrator."
+        }
+        
+        # Handle stop request
         if ($Stop) {
             Stop-NetTraceCapture
             return
@@ -200,6 +211,10 @@ function Start-NetTraceCapture {
         "=" * 60 | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
         "" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
         
+        # Create counter file for tracking counts
+        $script:CounterFile = Join-Path $Path ".nettrace_counters"
+        "0,0" | Out-File -FilePath $script:CounterFile -Encoding UTF8
+        
         # Force stop any existing netsh trace to ensure clean start (non-blocking)
         Start-Job -ScriptBlock { & netsh trace stop 2>&1 | Out-Null } | Out-Null
         
@@ -220,7 +235,7 @@ function Start-NetTraceCapture {
         
         # Start background job for file monitoring
         $script:TraceJob = Start-Job -ScriptBlock {
-            param($TracePath, $MaxFiles, $MaxSizeMB, $LogOutput, $LogFile)
+            param($TracePath, $MaxFiles, $MaxSizeMB, $LogOutput, $LogFile, $CounterFile)
             
             $fileNumber = 1
             $filesCreated = 0
@@ -228,6 +243,16 @@ function Start-NetTraceCapture {
             $fileHistory = @()  # Track created files for circular management
             $computerName = $env:COMPUTERNAME
             $maxSizeBytes = $MaxSizeMB * 1MB
+            
+            # Function to update counter file
+            function Update-CounterFile {
+                param($FilesCreated, $FilesRolled, $CounterFile)
+                try {
+                    "$FilesCreated,$FilesRolled" | Out-File -FilePath $CounterFile -Encoding UTF8
+                } catch {
+                    # Silently ignore counter file update errors
+                }
+            }
             
             # Create flag file to check if we should continue
             $flagFile = Join-Path $TracePath ".nettrace_running"
@@ -271,6 +296,7 @@ function Start-NetTraceCapture {
                 }
                 
                 $filesCreated++
+                Update-CounterFile -FilesCreated $filesCreated -FilesRolled $filesRolled -CounterFile $CounterFile
                 
                 # Add current file to history
                 $fileHistory += @{
@@ -298,40 +324,41 @@ function Start-NetTraceCapture {
                             # Size limit reached, rotate to next file
                             "$(Get-Date -Format 'HH:mm:ss') - Size limit reached! Rolling to new file..." | Out-File -FilePath $LogFile -Append -Encoding UTF8
                             
-                                                            # Stop current trace
-                                $stopOutput = & netsh trace stop 2>&1
-                                $stopProcess = [PSCustomObject]@{ ExitCode = $LASTEXITCODE }
-                                
-                                # Log stop output if requested
-                                if ($LogOutput) {
-                                    $netshLogFile = Join-Path $TracePath "netsh_trace.log"
-                                    "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - STOP TRACE:" | Out-File -FilePath $netshLogFile -Append -Encoding UTF8
-                                    $stopOutput | Out-File -FilePath $netshLogFile -Append -Encoding UTF8
-                                    "" | Out-File -FilePath $netshLogFile -Append -Encoding UTF8
-                                }
-                                
-                                # Always log to main log file
-                                "$(Get-Date -Format 'HH:mm:ss') - Trace stopped for file: $fileName" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                            # Stop current trace
+                            $stopOutput = & netsh trace stop 2>&1
+                            $stopProcess = [PSCustomObject]@{ ExitCode = $LASTEXITCODE }
                             
-                            if ($stopProcess.ExitCode -eq 0) {
-                                $filesRolled++
-                                $fileRotated = $true
-                                $fileNumber++
-                                
-                                # Circular file management: remove oldest file if we exceed MaxFiles
-                                if ($fileHistory.Count -gt $MaxFiles) {
-                                    $oldestFile = $fileHistory[0]
-                                    if (Test-Path $oldestFile.Path) {
-                                        Remove-Item $oldestFile.Path -Force -ErrorAction SilentlyContinue
-                                        "$(Get-Date -Format 'HH:mm:ss') - Removed oldest file: $($oldestFile.Name)" | Out-File -FilePath $LogFile -Append -Encoding UTF8
-                                    }
-                                    # Remove from history
-                                    $fileHistory = $fileHistory[1..($fileHistory.Count-1)]
-                                }
-                            } else {
-                                "$(Get-Date -Format 'HH:mm:ss') - ERROR: Failed to stop trace. Exit code: $($stopProcess.ExitCode)" | Out-File -FilePath $LogFile -Append -Encoding UTF8
-                                break
+                            # Log stop output if requested
+                            if ($LogOutput) {
+                                $netshLogFile = Join-Path $TracePath "netsh_trace.log"
+                                "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - STOP TRACE:" | Out-File -FilePath $netshLogFile -Append -Encoding UTF8
+                                $stopOutput | Out-File -FilePath $netshLogFile -Append -Encoding UTF8
+                                "" | Out-File -FilePath $netshLogFile -Append -Encoding UTF8
                             }
+                            
+                            # Always log to main log file
+                            "$(Get-Date -Format 'HH:mm:ss') - Trace stopped for file: $fileName" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                        
+                        if ($stopProcess.ExitCode -eq 0) {
+                            $filesRolled++
+                            Update-CounterFile -FilesCreated $filesCreated -FilesRolled $filesRolled -CounterFile $CounterFile
+                            $fileRotated = $true
+                            $fileNumber++
+                            
+                            # Circular file management: remove oldest file if we exceed MaxFiles
+                            if ($fileHistory.Count -gt $MaxFiles) {
+                                $oldestFile = $fileHistory[0]
+                                if (Test-Path $oldestFile.Path) {
+                                    Remove-Item $oldestFile.Path -Force -ErrorAction SilentlyContinue
+                                    "$(Get-Date -Format 'HH:mm:ss') - Removed oldest file: $($oldestFile.Name)" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                                }
+                                # Remove from history
+                                $fileHistory = $fileHistory[1..($fileHistory.Count-1)]
+                            }
+                        } else {
+                            "$(Get-Date -Format 'HH:mm:ss') - ERROR: Failed to stop trace. Exit code: $($stopProcess.ExitCode)" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                            break
+                        }
                         }
                     } else {
                         "$(Get-Date -Format 'HH:mm:ss') - ERROR: Trace file not found: $traceFile" | Out-File -FilePath $LogFile -Append -Encoding UTF8
@@ -348,23 +375,53 @@ function Start-NetTraceCapture {
             "$(Get-Date -Format 'HH:mm:ss') - SUMMARY: Files created: $filesCreated, Files rolled: $filesRolled" | Out-File -FilePath $LogFile -Append -Encoding UTF8
             "=" * 60 | Out-File -FilePath $LogFile -Append -Encoding UTF8
             
-        } -ArgumentList $Path, $MaxFiles, $MaxSizeMB, $LogOutput, $script:CurrentLogFile
+        } -ArgumentList $Path, $MaxFiles, $MaxSizeMB, $LogOutput, $script:CurrentLogFile, $script:CounterFile
         
         Write-Host "Trace monitoring started in background." -ForegroundColor Green
         Write-Host "All output is being logged to: $($script:CurrentLogFile)" -ForegroundColor Cyan
         Write-Host "Use 'NetTrace -Stop' to stop the trace." -ForegroundColor Yellow
         Write-Host "You can monitor progress with: Get-Content '$($script:CurrentLogFile)' -Wait" -ForegroundColor Gray
         
+        # Wait for the background job to create the first file and update counters
+        Start-Sleep -Seconds 3
+        
+        # Get current counts from counter file
+        $currentCounts = Get-CurrentCounts
+        
         # Return summary information
         return @{
-            FilesCreated = $script:FilesCreated
-            FilesRolled = $script:FilesRolled
+            FilesCreated = $currentCounts.FilesCreated
+            FilesRolled = $currentCounts.FilesRolled
             Success = $true
         }
     }
     catch {
         Write-Error "Error starting network trace: $($_.Exception.Message)"
         throw
+    }
+}
+
+function Get-CurrentCounts {
+    try {
+        if ($script:CounterFile -and (Test-Path $script:CounterFile)) {
+            $content = Get-Content $script:CounterFile -ErrorAction SilentlyContinue
+            if ($content) {
+                $parts = $content.Split(',')
+                if ($parts.Count -eq 2) {
+                    return @{
+                        FilesCreated = [int]$parts[0]
+                        FilesRolled = [int]$parts[1]
+                    }
+                }
+            }
+        }
+    } catch {
+        # Silently ignore errors and return defaults
+    }
+    
+    return @{
+        FilesCreated = 0
+        FilesRolled = 0
     }
 }
 
@@ -380,17 +437,47 @@ function Stop-NetTraceCapture {
         # Set the flag to stop monitoring
         $script:IsTracing = $false
         
-        # Remove flag file to stop background job
+        # Remove flag file to stop background job FIRST
         if ($script:TracePath) {
             $flagFile = Join-Path $script:TracePath ".nettrace_running"
             Remove-Item $flagFile -Force -ErrorAction SilentlyContinue
         }
         
-        # Stop netsh trace
-        & netsh trace stop 2>&1 | Out-Null
-        $process = [PSCustomObject]@{ ExitCode = $LASTEXITCODE }
+        # Give background job time to see the flag removal and stop gracefully
+        Start-Sleep -Milliseconds 1000
         
-        if ($process.ExitCode -eq 0) {
+        # Check if trace is still running first
+        $statusOutput = & netsh trace show status 2>&1
+        $isTraceRunning = $statusOutput -notmatch "no trace session currently in progress"
+        
+        $stopSuccess = $true  # Assume success by default
+        
+        if ($isTraceRunning) {
+            # Stop netsh trace (try multiple times if needed due to potential race conditions)
+            $stopAttempts = 0
+            $maxAttempts = 3
+            $stopSuccess = $false
+            
+            while ($stopAttempts -lt $maxAttempts -and -not $stopSuccess) {
+                $stopAttempts++
+                & netsh trace stop 2>&1 | Out-Null
+                $process = [PSCustomObject]@{ ExitCode = $LASTEXITCODE }
+                
+                if ($process.ExitCode -eq 0) {
+                    $stopSuccess = $true
+                } else {
+                    # If first attempt fails, wait a bit and try again
+                    if ($stopAttempts -lt $maxAttempts) {
+                        Start-Sleep -Milliseconds 500
+                    }
+                }
+            }
+        } else {
+            # Trace is already stopped, so we're successful
+            $process = [PSCustomObject]@{ ExitCode = 0 }
+        }
+        
+        if ($stopSuccess) {
             Write-Host "Trace stopped." -ForegroundColor Green
             
             # Log the stop action
@@ -400,20 +487,23 @@ function Stop-NetTraceCapture {
                 Write-Host "Final logs saved to: $($script:CurrentLogFile)" -ForegroundColor Cyan
             }
             
+            # Get final counts from counter file
+            $finalCounts = Get-CurrentCounts
+            
             return @{
                 Success = $true
-                FilesCreated = $script:FilesCreated
-                FilesRolled = $script:FilesRolled
+                FilesCreated = $finalCounts.FilesCreated
+                FilesRolled = $finalCounts.FilesRolled
             }
         } else {
             if ($VerbosePreference -eq 'Continue') {
-                Write-Host "Failed to stop trace. Exit code: $($process.ExitCode)" -ForegroundColor Red
+                Write-Host "Failed to stop trace after $stopAttempts attempts. Last exit code: $($process.ExitCode)" -ForegroundColor Red
             } else {
-                Write-Host "Failed to stop trace."
+                Write-Host "Failed to stop trace after multiple attempts."
             }
             return @{
                 Success = $false
-                Error = "netsh trace stop failed with exit code $($process.ExitCode)"
+                Error = "netsh trace stop failed after $stopAttempts attempts. Last exit code: $($process.ExitCode)"
             }
         }
     }
@@ -428,6 +518,12 @@ function Stop-NetTraceCapture {
         # Clean up script variables
         $script:IsTracing = $false
         $script:CurrentLogFile = $null
+        
+        # Clean up counter file
+        if ($script:CounterFile -and (Test-Path $script:CounterFile)) {
+            Remove-Item $script:CounterFile -Force -ErrorAction SilentlyContinue
+        }
+        $script:CounterFile = $null
         
         # Clean up background job
         if ($script:TraceJob) {
