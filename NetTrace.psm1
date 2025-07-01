@@ -65,6 +65,11 @@ $script:CounterFile = $null
 .PARAMETER LogNetshOutput
     Logs all netsh trace output to a file named 'netsh_trace.log' in the trace directory.
     This suppresses console output while preserving it for troubleshooting.
+
+.PARAMETER Log
+    When specified, enables detailed logging of all trace operations to a log file.
+    Without this parameter, the module operates without creating log files, reducing disk I/O.
+    Recommended for troubleshooting or monitoring trace progress.
     
 .PARAMETER Verbose
     Shows detailed information about files created, rolled, and deleted during circular management.
@@ -87,6 +92,12 @@ $script:CounterFile = $null
     
     Creates 3 trace files of 25MB each in D:\NetworkTraces directory. All netsh trace 
     output is logged to D:\NetworkTraces\netsh_trace.log for troubleshooting purposes.
+
+.EXAMPLE
+    NetTrace -File 4 -FileSize 15 -Path "C:\Traces" -Log
+    
+    Creates up to 4 files of 15MB each with detailed logging enabled. Progress and file 
+    operations are logged to C:\Traces\NetTrace_*.log for monitoring and troubleshooting.
     
 .EXAMPLE
     NetTrace -Stop
@@ -118,7 +129,10 @@ function NetTrace {
         [switch]$Stop,
         
         [Parameter(Mandatory=$false)]
-        [switch]$LogNetshOutput
+        [switch]$LogNetshOutput,
+        
+        [Parameter(Mandatory=$false)]
+        [switch]$Log
     )
     
     try {
@@ -166,7 +180,7 @@ function NetTrace {
         }
         
         # Start trace capture
-        Start-NetTraceCapture -Path $Path -MaxFiles $File -MaxSizeMB $FileSize -LogOutput:$LogNetshOutput
+        Start-NetTraceCapture -Path $Path -MaxFiles $File -MaxSizeMB $FileSize -LogOutput:$LogNetshOutput -EnableLogging:$Log
     }
     catch {
         Write-Error "Error in NetTrace: $($_.Exception.Message)"
@@ -187,7 +201,10 @@ function Start-NetTraceCapture {
         [int]$MaxSizeMB,
         
         [Parameter()]
-        [bool]$LogOutput = $false
+        [bool]$LogOutput = $false,
+        
+        [Parameter()]
+        [bool]$EnableLogging = $false
     )
     
     try {
@@ -204,12 +221,16 @@ function Start-NetTraceCapture {
             Write-Host "Max Size: $MaxSizeMB MB" -ForegroundColor Yellow
         }
         
-        # Create log file for all output FIRST
-        $script:CurrentLogFile = Join-Path $Path "NetTrace_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').log"
-        "NetTrace session started at $(Get-Date)" | Out-File -FilePath $script:CurrentLogFile -Encoding UTF8
-        "Command: NetTrace -File $MaxFiles -FileSize $MaxSizeMB -Path '$Path'" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
-        "=" * 60 | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
-        "" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
+        # Create log file for all output if logging is enabled
+        if ($EnableLogging) {
+            $script:CurrentLogFile = Join-Path $Path "NetTrace_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').log"
+            "NetTrace session started at $(Get-Date)" | Out-File -FilePath $script:CurrentLogFile -Encoding UTF8
+            "Command: NetTrace -File $MaxFiles -FileSize $MaxSizeMB -Path '$Path'" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
+            "=" * 60 | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
+            "" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
+        } else {
+            $script:CurrentLogFile = $null
+        }
         
         # Create counter file for tracking counts
         $script:CounterFile = Join-Path $Path ".nettrace_counters"
@@ -254,6 +275,18 @@ function Start-NetTraceCapture {
                 }
             }
             
+            # Function to write to log file if logging is enabled
+            function Write-ToLog {
+                param($Message, $LogFile)
+                if ($LogFile) {
+                    try {
+                        $Message | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                    } catch {
+                        # Silently ignore log file errors
+                    }
+                }
+            }
+            
             # Create flag file to check if we should continue
             $flagFile = Join-Path $TracePath ".nettrace_running"
             "running" | Out-File -FilePath $flagFile -Force
@@ -270,7 +303,7 @@ function Start-NetTraceCapture {
                 $fileName = [System.IO.Path]::GetFileName($traceFile)
                 
                 # Log file creation
-                "$(Get-Date -Format 'HH:mm:ss') - Creating File #$fileNumber : $fileName" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Creating File #$fileNumber : $fileName" -LogFile $LogFile
                 
                 # Start netsh trace with report disabled and no additional data capture
                 $arguments = @("trace", "start", "capture=yes", "report=disabled", "overwrite=yes", "maxSize=$MaxSizeMB", "tracefile=`"$traceFile`"")
@@ -288,10 +321,10 @@ function Start-NetTraceCapture {
                 }
                 
                 # Always log to main log file
-                "$(Get-Date -Format 'HH:mm:ss') - Netsh trace started for: $fileName" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Netsh trace started for: $fileName" -LogFile $LogFile
                 
                 if ($process.ExitCode -ne 0) {
-                    "$(Get-Date -Format 'HH:mm:ss') - ERROR: Failed to start trace. Exit code: $($process.ExitCode)" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                    Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - ERROR: Failed to start trace. Exit code: $($process.ExitCode)" -LogFile $LogFile
                     break
                 }
                 
@@ -305,7 +338,7 @@ function Start-NetTraceCapture {
                     Name = $fileName
                 }
                 
-                "$(Get-Date -Format 'HH:mm:ss') - Monitoring file size (limit: $MaxSizeMB MB)..." | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Monitoring file size (limit: $MaxSizeMB MB)..." -LogFile $LogFile
                 
                 # Monitor this specific file until it reaches size limit
                 $fileRotated = $false
@@ -318,11 +351,11 @@ function Start-NetTraceCapture {
                         $fileSize = (Get-Item $traceFile).Length
                         
                         $sizeMB = [math]::Round($fileSize/1MB, 2)
-                        "$(Get-Date -Format 'HH:mm:ss') - File: $fileName - Size: $sizeMB MB / $MaxSizeMB MB" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                        Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - File: $fileName - Size: $sizeMB MB / $MaxSizeMB MB" -LogFile $LogFile
                         
                         if ($fileSize -ge $maxSizeBytes) {
                             # Size limit reached, rotate to next file
-                            "$(Get-Date -Format 'HH:mm:ss') - Size limit reached! Rolling to new file..." | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                            Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Size limit reached! Rolling to new file..." -LogFile $LogFile
                             
                             # Stop current trace
                             $stopOutput = & netsh trace stop 2>&1
@@ -337,7 +370,7 @@ function Start-NetTraceCapture {
                             }
                             
                             # Always log to main log file
-                            "$(Get-Date -Format 'HH:mm:ss') - Trace stopped for file: $fileName" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                            Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Trace stopped for file: $fileName" -LogFile $LogFile
                         
                         if ($stopProcess.ExitCode -eq 0) {
                             $filesRolled++
@@ -350,18 +383,18 @@ function Start-NetTraceCapture {
                                 $oldestFile = $fileHistory[0]
                                 if (Test-Path $oldestFile.Path) {
                                     Remove-Item $oldestFile.Path -Force -ErrorAction SilentlyContinue
-                                    "$(Get-Date -Format 'HH:mm:ss') - Removed oldest file: $($oldestFile.Name)" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                                    Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Removed oldest file: $($oldestFile.Name)" -LogFile $LogFile
                                 }
                                 # Remove from history
                                 $fileHistory = $fileHistory[1..($fileHistory.Count-1)]
                             }
                         } else {
-                            "$(Get-Date -Format 'HH:mm:ss') - ERROR: Failed to stop trace. Exit code: $($stopProcess.ExitCode)" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                            Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - ERROR: Failed to stop trace. Exit code: $($stopProcess.ExitCode)" -LogFile $LogFile
                             break
                         }
                         }
                     } else {
-                        "$(Get-Date -Format 'HH:mm:ss') - ERROR: Trace file not found: $traceFile" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+                        Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - ERROR: Trace file not found: $traceFile" -LogFile $LogFile
                         break
                     }
                 }
@@ -371,16 +404,20 @@ function Start-NetTraceCapture {
             & netsh trace stop 2>&1 | Out-Null
             
             # Output summary to log
-            "$(Get-Date -Format 'HH:mm:ss') - Trace session ended" | Out-File -FilePath $LogFile -Append -Encoding UTF8
-            "$(Get-Date -Format 'HH:mm:ss') - SUMMARY: Files created: $filesCreated, Files rolled: $filesRolled" | Out-File -FilePath $LogFile -Append -Encoding UTF8
-            "=" * 60 | Out-File -FilePath $LogFile -Append -Encoding UTF8
+            Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Trace session ended" -LogFile $LogFile
+            Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - SUMMARY: Files created: $filesCreated, Files rolled: $filesRolled" -LogFile $LogFile
+            Write-ToLog -Message ("=" * 60) -LogFile $LogFile
             
         } -ArgumentList $Path, $MaxFiles, $MaxSizeMB, $LogOutput, $script:CurrentLogFile, $script:CounterFile
         
         Write-Host "Trace monitoring started in background." -ForegroundColor Green
-        Write-Host "All output is being logged to: $($script:CurrentLogFile)" -ForegroundColor Cyan
+        if ($EnableLogging) {
+            Write-Host "All output is being logged to: $($script:CurrentLogFile)" -ForegroundColor Cyan
+            Write-Host "You can monitor progress with: Get-Content '$($script:CurrentLogFile)' -Wait" -ForegroundColor Gray
+        } else {
+            Write-Host "Logging is disabled. Use -Log parameter to enable detailed logging." -ForegroundColor Gray
+        }
         Write-Host "Use 'NetTrace -Stop' to stop the trace." -ForegroundColor Yellow
-        Write-Host "You can monitor progress with: Get-Content '$($script:CurrentLogFile)' -Wait" -ForegroundColor Gray
         
         # Wait for the background job to create the first file and update counters
         Start-Sleep -Seconds 3

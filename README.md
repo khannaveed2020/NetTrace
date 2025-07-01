@@ -9,7 +9,8 @@ A professional PowerShell module for Windows network tracing using the native `n
 - **Circular File Management**: Maintains fixed number of files, deletes oldest when full
 - **Clean Console Output**: No netsh spam, minimal user-friendly messages
 - **Professional Stop Functionality**: Use `NetTrace -Stop` (no more CTRL+C needed)
-- **Optional Detailed Logging**: Save netsh technical details when needed
+- **Optional Activity Logging**: Enable detailed progress logging with `-Log` parameter
+- **Optional Technical Logging**: Save netsh technical details when needed
 - **Real-time Monitoring**: Optional log file monitoring with `Get-Content -Wait`
 
 ## Requirements
@@ -33,7 +34,7 @@ Import-Module .\NetTrace.psd1
 ### Basic Syntax
 
 ```powershell
-NetTrace -File <integer> -FileSize <integer> -Path <string> [-Verbose] [-LogNetshOutput]
+NetTrace -File <integer> -FileSize <integer> -Path <string> [-Log] [-Verbose] [-LogNetshOutput]
 NetTrace -Stop
 ```
 
@@ -42,17 +43,74 @@ NetTrace -Stop
 - **`-File`**: Maximum number of trace files to maintain (circular buffer)
 - **`-FileSize`**: Maximum size of each file in MB (minimum 10 MB due to netsh limitation)
 - **`-Path`**: Directory path where trace files will be stored
+- **`-Log`**: Enables detailed activity logging to timestamped log files (optional)
 - **`-Verbose`**: Shows detailed progress information (optional)
 - **`-LogNetshOutput`**: Saves netsh technical details to `netsh_trace.log` (optional)
 - **`-Stop`**: Stops the currently running trace
 
 **Important**: Netsh trace has a minimum file size of 10MB. Values less than 10MB will cause netsh to default to 512MB files.
 
+## Logging Options
+
+### `-Log` Parameter (Activity Logging)
+**Purpose**: Logs NetTrace module operations and file management activities.
+
+**What it includes**:
+- File creation and rotation events
+- File size monitoring progress  
+- Circular management (file deletions)
+- Session start/stop information
+- Error messages and summaries
+
+**Log file**: `NetTrace_YYYY-MM-DD_HHMMSS.log`
+
+**When to use**: 
+- Monitor trace progress and file operations
+- Troubleshoot NetTrace module behavior
+- Track file creation/rotation statistics
+
+### `-LogNetshOutput` Parameter (Technical Logging)
+**Purpose**: Logs raw netsh trace command output and diagnostics.
+
+**What it includes**:
+- Raw netsh trace start/stop output
+- Provider configuration details
+- Windows networking trace diagnostics
+- Low-level netsh error messages
+
+**Log file**: `netsh_trace.log`
+
+**When to use**:
+- Debug netsh trace command failures
+- Advanced Windows networking troubleshooting
+- Capture technical details for support tickets
+
+### No Logging (Default)
+**Purpose**: Minimal disk I/O with lean operation.
+
+**Benefits**:
+- Faster performance (no log file writes)
+- Reduced disk space usage
+- Clean operation for production environments
+
 ## Examples
 
-### Basic Usage (Clean Console)
+### Basic Usage (No Logging - Minimal Disk I/O)
 ```powershell
 NetTrace -File 2 -FileSize 10 -Path "C:\Traces"
+```
+**Output:**
+```
+Trace monitoring started in background.
+Logging is disabled. Use -Log parameter to enable detailed logging.
+Use 'NetTrace -Stop' to stop the trace.
+
+PS C:\> █  # Console immediately available
+```
+
+### With Activity Logging
+```powershell
+NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -Log
 ```
 **Output:**
 ```
@@ -76,11 +134,18 @@ NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -LogNetshOutput
 ```
 **Creates additional `netsh_trace.log` with technical details**
 
-### Monitor Progress (Optional)
+### With Both Activity and Technical Logging
+```powershell
+NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -Log -LogNetshOutput
+```
+**Creates both activity logs and technical netsh logs for comprehensive troubleshooting**
+
+### Monitor Progress (Optional - Requires `-Log` Parameter)
 ```powershell
 # In same or different PowerShell window
 Get-Content "C:\Traces\NetTrace_*.log" -Wait
 ```
+**Note**: Progress monitoring requires the `-Log` parameter to be used when starting the trace.
 
 ### Stop Trace
 ```powershell
@@ -115,12 +180,14 @@ Final logs saved to: C:\Traces\NetTrace_2025-06-28_145500.log
 - `MYPC_28-06-25-145501.etl`
 - `SERVER01_28-06-25-145616.etl`
 
-### Activity Log Files
+### Activity Log Files (Only with `-Log` Parameter)
 ```
 NetTrace_yyyy-MM-dd_HHmmss.log
 ```
 **Examples:**
 - `NetTrace_2025-06-28_145500.log`
+
+**Note**: These files are only created when using the `-Log` parameter.
 
 ### Sample Log Content
 ```
@@ -141,38 +208,25 @@ Command: NetTrace -File 2 -FileSize 10 -Path 'C:\Traces'
 
 ## Testing
 
-### Quick Test
+### Comprehensive Test Suite
 ```powershell
-# Run basic functionality test
-.\Simple-Test.ps1
+# Run the complete test suite with interactive menu
+.\Test-NetTrace-Complete.ps1
 ```
 
-### Comprehensive Test
-```powershell
-# Run detailed test with measurements
-.\Quick-Test.ps1
-```
-
-### Full Test Suite
-```powershell
-# Run complete regression testing
-.\Test-NetTrace.ps1
-```
-
-### Test Circular Behavior
-```powershell
-# Demonstrate circular file management
-.\Test-CircularBehavior.ps1
-```
+**Available test options:**
+- **Quick Test**: 2-3 minute basic functionality validation
+- **Standard Test**: 5-10 minute comprehensive testing
+- **Circular Test**: Manual circular file management demonstration
+- **Parameter Test**: Input validation testing
+- **Performance Test**: Console responsiveness validation
+- **Full Test Suite**: Complete 15-20 minute regression testing
 
 ### Generate Network Traffic (for testing)
 ```powershell
 # Create network activity to fill trace files faster
 .\Generate-NetworkTraffic.ps1
 ```
-
-### Detailed Testing Instructions
-See `TESTING_INSTRUCTIONS.md` for comprehensive testing procedures.
 
 ## Key Benefits
 
@@ -234,13 +288,11 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 | `NetTrace.psm1` | Main module functionality |
 | `NetTrace.psd1` | Module manifest |
 | `Example.ps1` | Usage examples |
-| `Simple-Test.ps1` | Basic functionality test |
-| `Quick-Test.ps1` | Comprehensive test with measurements |
-| `Test-NetTrace.ps1` | Full regression test suite |
-| `Test-CircularBehavior.ps1` | Circular file management demo |
-| `Test-AdminRequired.ps1` | Administrator privilege testing |
+| `Test-NetTrace-Complete.ps1` | Comprehensive test suite with interactive menu |
 | `Generate-NetworkTraffic.ps1` | Network traffic generator for testing |
-| `TESTING_INSTRUCTIONS.md` | Detailed testing procedures |
+| `README.md` | Complete documentation (this file) |
+| `LICENSE` | MIT license file |
+| `PUBLISH_GUIDE.md` | PowerShell Gallery publication instructions |
 
 ## License
 
@@ -248,5 +300,11 @@ This module is provided as-is for educational and administrative purposes.
 
 ## Version History
 
+- **v1.0.0**: Production release with optional logging, file counter fixes, and PowerShell Gallery readiness
+  - Added `-Log` parameter for optional activity logging
+  - Fixed file counter accuracy issues  
+  - Improved stop command reliability
+  - Consolidated test suite into single interactive script
+  - Enhanced documentation and help system
 - **v2.0**: Non-blocking operation with background jobs and automatic logging
 - **v1.0**: Original blocking implementation with console output 
