@@ -300,11 +300,16 @@ This module is provided as-is for educational and administrative purposes.
 
 ## Version History
 
-- **v1.0.0**: Production release with optional logging, file counter fixes, and PowerShell Gallery readiness
+- **v1.1.0**: Enhanced logging control and production improvements
   - Added `-Log` parameter for optional activity logging
   - Fixed file counter accuracy issues  
   - Improved stop command reliability
   - Consolidated test suite into single interactive script
   - Enhanced documentation and help system
-- **v2.0**: Non-blocking operation with background jobs and automatic logging
-- **v1.0**: Original blocking implementation with console output 
+  - PowerShell Gallery publication ready
+- **v1.0.0**: Production release with non-blocking operation and circular file management
+  - Non-blocking operation with background jobs
+  - Automatic circular file rotation
+  - Comprehensive logging capabilities
+  - Administrator privilege validation
+- **v0.9.0**: Initial development version with basic functionality 

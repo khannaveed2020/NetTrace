@@ -12,7 +12,7 @@
     
 .NOTES
     File Name      : NetTrace.psm1
-    Version        : 1.0.0
+    Version        : 1.1.0
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.

@@ -7,7 +7,7 @@ Your NetTrace module is now **ready for PowerShell Gallery publication**! Here's
 ### 📋 Module Files Updated
 
 1. **NetTrace.psd1** - Module manifest updated with:
-   - ✅ Version 1.0.0
+   - ✅ Version 1.1.0
    - ✅ Author: Naveed Khan
    - ✅ Company: Hogwarts
    - ✅ MIT License reference
@@ -17,7 +17,7 @@ Your NetTrace module is now **ready for PowerShell Gallery publication**! Here's
    - ✅ Detailed description and release notes
 
 2. **NetTrace.psm1** - Module code updated with:
-   - ✅ Version 1.0.0 in header
+   - ✅ Version 1.1.0 in header
    - ✅ Author and copyright information
    - ✅ Enhanced documentation with comprehensive examples
    - ✅ GitHub project links
@@ -37,6 +37,9 @@ Your NetTrace module is now **ready for PowerShell Gallery publication**! Here's
 ```powershell
 # Navigate to your module directory
 Set-Location "E:\Cursor\PowerShell Modules\NetTrace"
+
+# Run comprehensive validation
+.\Validate-PublishReadiness.ps1
 
 # Verify module is valid
 Test-ModuleManifest -Path ".\NetTrace.psd1"
@@ -83,7 +86,8 @@ Ensure these files are present in your module directory:
 - ✅ `NetTrace.psd1` - Module manifest
 - ✅ `README.md` - Module documentation
 - ✅ `LICENSE` - MIT License file
-- ✅ `TESTING_INSTRUCTIONS.md` - Testing guide
+- ✅ `Test-NetTrace-Complete.ps1` - Comprehensive testing suite
+- ✅ `Validate-PublishReadiness.ps1` - Publication validation script
 
 ## 🏷️ Module Tags for Discoverability
 
@@ -94,7 +98,7 @@ Your module includes these tags for better discoverability:
 ## 📊 Module Metadata
 
 - **Name**: NetTrace
-- **Version**: 1.0.0
+- **Version**: 1.1.0
 - **Author**: Naveed Khan
 - **License**: MIT
 - **PowerShell Version**: 5.1+
