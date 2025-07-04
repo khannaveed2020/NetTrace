@@ -1,56 +1,66 @@
-#Requires -Version 5.1
-#Requires -RunAsAdministrator
-
-<#
-.SYNOPSIS
-    Example script demonstrating NetTrace module usage
-    
-.DESCRIPTION
-    This script shows how to use the NetTrace module with the new simplified interface.
-    It creates network traces with automatic file rotation based on size limits.
-#>
+# NetTrace Module - Basic Usage Example
+# Version: 1.1.0
+# Author: Naveed Khan
+# Company: Hogwarts
 
 # Import the NetTrace module
 Import-Module .\NetTrace.psd1 -Force
 
-Write-Host "NetTrace Module Example" -ForegroundColor Green
-Write-Host "======================" -ForegroundColor Green
-Write-Host ""
+Write-Output "NetTrace Module - Basic Usage Example"
+Write-Output "Version: 1.1.0"
+Write-Output "Author: Naveed Khan"
+Write-Output "Company: Hogwarts"
+Write-Output ""
 
-# Example 1: Basic usage without verbose output
-Write-Host "Example 1: Basic trace (3 files, 50MB each)" -ForegroundColor Yellow
-Write-Host "Command: NetTrace -File 3 -FileSize 50 -Path 'C:\Temp\NetTraces'" -ForegroundColor Gray
-Write-Host ""
+Write-Output "This example demonstrates basic NetTrace functionality:"
+Write-Output "1. Starting a network trace with circular file management"
+Write-Output "2. Monitoring the trace progress"
+Write-Output "3. Stopping the trace"
+Write-Output ""
 
-# Uncomment the line below to run the example
-# NetTrace -File 3 -FileSize 50 -Path "C:\Temp\NetTraces"
+# Configuration
+$TracePath = "C:\Traces\Example"
+$MaxFiles = 3
+$MaxSizeMB = 25
 
-Write-Host ""
-Write-Host "Example 2: Verbose trace (5 files, 100MB each)" -ForegroundColor Yellow
-Write-Host "Command: NetTrace -File 5 -FileSize 100 -Path 'C:\Temp\NetTraces' -Verbose" -ForegroundColor Gray
-Write-Host ""
+Write-Output "Configuration:"
+Write-Output "  Path: $TracePath"
+Write-Output "  Max Files: $MaxFiles"
+Write-Output "  Max Size: $MaxSizeMB MB each"
+Write-Output ""
 
-# Uncomment the line below to run the verbose example
-# NetTrace -File 5 -FileSize 100 -Path "C:\Temp\NetTraces" -Verbose
+# Create trace directory if it doesn't exist
+if (-not (Test-Path $TracePath)) {
+    New-Item -Path $TracePath -ItemType Directory -Force | Out-Null
+    Write-Output "Created trace directory: $TracePath"
+}
 
-Write-Host ""
-Write-Host "Example 3: Stop current trace" -ForegroundColor Yellow
-Write-Host "Command: NetTrace -Stop" -ForegroundColor Gray
-Write-Host ""
+Write-Output "Starting NetTrace..."
+Write-Output "This will create up to $MaxFiles files of $MaxSizeMB MB each"
+Write-Output "Files will be replaced in circular fashion when limit is reached"
+Write-Output ""
 
-# Uncomment the line below to stop any running trace
-# NetTrace -Stop
+# Start the trace
+try {
+    NetTrace -File $MaxFiles -FileSize $MaxSizeMB -Path $TracePath -Verbose
+    Write-Output "NetTrace started successfully!"
+    Write-Output ""
+    
+    Write-Output "The trace is now running in the background."
+    Write-Output "You can:"
+    Write-Output "- Check the trace directory for .etl files"
+    Write-Output "- Monitor file creation and rotation"
+    Write-Output "- Use 'NetTrace -Stop' to stop the trace"
+    Write-Output ""
+    
+    Write-Output "Example commands to try while trace is running:"
+    Write-Output "  Get-ChildItem '$TracePath' -Filter '*.etl'"
+    Write-Output "  NetTrace -Stop"
+    Write-Output ""
+    
+} catch {
+    Write-Error "Failed to start NetTrace: $($_.Exception.Message)"
+    exit 1
+}
 
-Write-Host ""
-Write-Host "Output Behavior:" -ForegroundColor Cyan
-Write-Host "- Without -Verbose: Shows only filenames created and final summary" -ForegroundColor White
-Write-Host "- With -Verbose: Shows detailed progress, file sizes, and rotation info" -ForegroundColor White
-Write-Host ""
-Write-Host "File Format: <computername>_dd-MM-yy-HHmmss.etl" -ForegroundColor Cyan
-Write-Host "Example: MYPC_25-12-24-143022.etl" -ForegroundColor White
-Write-Host ""
-Write-Host "Features:" -ForegroundColor Cyan
-Write-Host "- Report generation is disabled" -ForegroundColor White
-Write-Host "- No additional data capture beyond network traces" -ForegroundColor White
-Write-Host "- Automatic file rotation when size limit is reached" -ForegroundColor White
-Write-Host "- Creates exactly the specified number of files" -ForegroundColor White 
+Write-Output "Example completed. Use 'NetTrace -Stop' to stop the trace when done." 

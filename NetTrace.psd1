@@ -9,7 +9,7 @@
     CompatiblePSEditions = @('Core', 'Desktop')
 
     # ID used to uniquely identify this module
-    GUID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+    GUID = 'c8fe6e2e-8245-44e7-ae87-cf9a44e882f6'
 
     # Author of this module
     Author = 'Naveed Khan'
@@ -82,13 +82,7 @@
         'NetTrace.psm1',
         'NetTrace.psd1',
         'README.md',
-        'LICENSE',
-        'Test-NetTrace-Complete.ps1',
-        'Generate-NetworkTraffic.ps1',
-        'Example.ps1',
-        'PUBLISH_GUIDE.md',
-        'Validate-PublishReadiness.ps1',
-        'PUBLICATION_SUMMARY.md'
+        'LICENSE'
     )
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess
@@ -108,4 +102,4 @@
 
     # HelpInfo URI of this module
     HelpInfoURI = 'https://github.com/khannaveed2020/NetTrace/issues'
-} 
+}

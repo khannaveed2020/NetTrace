@@ -1,77 +1,109 @@
-# Generate-NetworkTraffic.ps1
-# This script generates network traffic to help test the NetTrace module
-# Run this in a separate PowerShell window while NetTrace is running
+# NetTrace Module - Network Traffic Generator
+# Version: 1.1.0
+# Author: Naveed Khan
+# Company: Hogwarts
 
-param(
-    [int]$DurationSeconds = 30,
-    [int]$RequestsPerSecond = 5
-)
+# This script generates network traffic to test NetTrace functionality
 
-Write-Host "Network Traffic Generator" -ForegroundColor Yellow
-Write-Host "========================" -ForegroundColor Yellow
-Write-Host "Duration: $DurationSeconds seconds" -ForegroundColor Cyan
-Write-Host "Requests per second: $RequestsPerSecond" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "This will generate HTTP requests to help create network trace data." -ForegroundColor Green
-Write-Host "Run this WHILE NetTrace is running in another window." -ForegroundColor Green
-Write-Host ""
+Write-Output "NetTrace Module - Network Traffic Generator"
+Write-Output "Version: 1.1.0"
+Write-Output "Author: Naveed Khan"
+Write-Output "Company: Hogwarts"
+Write-Output ""
 
-$urls = @(
+Write-Output "This script generates network traffic for testing NetTrace."
+Write-Output "It will make HTTP requests to various websites to create"
+Write-Output "network activity that can be captured by NetTrace."
+Write-Output ""
+
+# Configuration
+$Websites = @(
     "https://www.google.com",
-    "https://www.microsoft.com", 
+    "https://www.microsoft.com",
     "https://www.github.com",
     "https://www.stackoverflow.com",
-    "https://www.reddit.com"
+    "https://www.wikipedia.org"
 )
 
-$endTime = (Get-Date).AddSeconds($DurationSeconds)
-$requestCount = 0
+$RequestCount = 50
+$DelayBetweenRequests = 1  # seconds
 
-Write-Host "Starting traffic generation..." -ForegroundColor Green
+Write-Output "Configuration:"
+Write-Output "  Websites: $($Websites.Count) sites"
+Write-Output "  Requests per site: $RequestCount"
+Write-Output "  Delay between requests: $DelayBetweenRequests seconds"
+Write-Output "  Total requests: $($Websites.Count * $RequestCount)"
+Write-Output ""
 
-try {
-    while ((Get-Date) -lt $endTime) {
-        $startTime = Get-Date
-        
-        # Make multiple requests in parallel
-        for ($i = 0; $i -lt $RequestsPerSecond; $i++) {
-            $url = $urls[$i % $urls.Count]
-            
-            # Use background jobs for parallel requests
-            Start-Job -ScriptBlock {
-                param($url)
-                try {
-                    Invoke-WebRequest -Uri $url -TimeoutSec 5 -UseBasicParsing | Out-Null
-                } catch {
-                    # Ignore errors - we just want to generate traffic
+$confirm = Read-Host "Start generating network traffic? (y/N)"
+if ($confirm -ne 'y' -and $confirm -ne 'Y') {
+    Write-Output "Network traffic generation cancelled."
+    exit 0
+}
+
+Write-Output "Starting network traffic generation..."
+Write-Output ""
+
+$totalRequests = 0
+$successfulRequests = 0
+$failedRequests = 0
+
+# Generate traffic for each website
+foreach ($website in $Websites) {
+    Write-Output "Generating traffic for: $website"
+
+    # Create background jobs for parallel requests
+    $jobs = @()
+    for ($i = 1; $i -le $RequestCount; $i++) {
+        $job = Start-Job -ScriptBlock {
+            param($url)
+            try {
+                $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+                return @{
+                    Success = $true
+                    StatusCode = $response.StatusCode
+                    ContentLength = $response.Content.Length
                 }
-            } -ArgumentList $url | Out-Null
-            
-            $requestCount++
-        }
-        
-        # Clean up completed jobs
-        Get-Job | Where-Object { $_.State -eq 'Completed' } | Remove-Job
-        
-        Write-Host "Generated $requestCount requests..." -ForegroundColor Gray
-        
-        # Wait for the rest of the second
-        $elapsed = (Get-Date) - $startTime
-        $sleepTime = 1000 - $elapsed.TotalMilliseconds
-        if ($sleepTime -gt 0) {
-            Start-Sleep -Milliseconds $sleepTime
-        }
+            } catch {
+                return @{
+                    Success = $false
+                    Error = $_.Exception.Message
+                }
+            }
+        } -ArgumentList $website
+
+        $jobs += $job
+        $totalRequests++
+
+        # Small delay between job starts
+        Start-Sleep -Milliseconds 100
     }
-    
-    # Clean up any remaining jobs
-    Get-Job | Remove-Job -Force
-    
-    Write-Host ""
-    Write-Host "Traffic generation completed!" -ForegroundColor Green
-    Write-Host "Total requests sent: $requestCount" -ForegroundColor Cyan
-    Write-Host "This should have generated enough network activity for your trace files." -ForegroundColor Green
-    
-} catch {
-    Write-Host "Error generating traffic: $($_.Exception.Message)" -ForegroundColor Red
-    Get-Job | Remove-Job -Force
-} 
+
+    # Wait for all jobs to complete and collect results
+    $results = $jobs | Wait-Job | Receive-Job
+    $jobs | Remove-Job
+
+    # Count successful and failed requests
+    $siteSuccessful = ($results | Where-Object { $_.Success }).Count
+    $siteFailed = ($results | Where-Object { -not $_.Success }).Count
+
+    $successfulRequests += $siteSuccessful
+    $failedRequests += $siteFailed
+
+    Write-Output "  Completed: $siteSuccessful successful, $siteFailed failed"
+
+    # Delay before next website
+    Start-Sleep -Seconds $DelayBetweenRequests
+}
+
+Write-Output ""
+Write-Output "Network traffic generation completed!"
+Write-Output ""
+Write-Output "Summary:"
+Write-Output "  Total requests: $totalRequests"
+Write-Output "  Successful: $successfulRequests"
+Write-Output "  Failed: $failedRequests"
+Write-Output "  Success rate: $([math]::Round(($successfulRequests / $totalRequests) * 100, 2))%"
+Write-Output ""
+Write-Output "This network activity should now be visible in your NetTrace capture."
+Write-Output "Check your trace files for the generated network traffic." 
