@@ -21,6 +21,14 @@ A professional PowerShell module for Windows network tracing using the native `n
 
 ## Installation
 
+### From PowerShell Gallery (Recommended)
+
+```powershell
+Install-Module -Name NetTrace
+```
+
+### Manual Installation
+
 1. Download or clone the module files
 2. Place them in a directory accessible to PowerShell
 3. Import the module:
@@ -28,6 +36,20 @@ A professional PowerShell module for Windows network tracing using the native `n
 ```powershell
 Import-Module .\NetTrace.psd1
 ```
+
+## Important: Administrator Privileges Required
+
+⚠️ **This module requires Administrator privileges to function.** 
+
+The module will load successfully in non-admin PowerShell sessions, but when you try to run the `NetTrace` command, you'll receive an error message:
+
+```
+This module requires Administrator privileges. Please run PowerShell as Administrator.
+```
+
+**To use this module:**
+1. Right-click on PowerShell and select "Run as Administrator"
+2. Or use `Start-Process PowerShell -Verb RunAs`
 
 ## Usage
 

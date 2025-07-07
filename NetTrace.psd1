@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.1.0'
+    ModuleVersion = '1.2.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -82,7 +82,10 @@
         'NetTrace.psm1',
         'NetTrace.psd1',
         'README.md',
-        'LICENSE'
+        'LICENSE',
+        'NetTrace-Service.ps1',
+        'NetTrace-ScheduledTask.ps1',
+        'PERSISTENT_SETUP_GUIDE.md'
     )
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess
@@ -91,7 +94,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.1.0: Added optional logging functionality with -Log parameter for enhanced control over disk I/O and performance. Fixed file counter accuracy issues and improved stop command reliability. Consolidated test suite and enhanced documentation.'
+            ReleaseNotes = 'v1.2.0: Added Windows Service and Scheduled Task support for persistent operation. Service survives user logouts, disconnections, and reboots. Includes comprehensive setup guide, troubleshooting, and production deployment scripts. v1.1.0: Added optional logging functionality, fixed file counter accuracy, improved stop command reliability.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()
