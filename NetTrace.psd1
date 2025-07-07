@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.2.0'
+    ModuleVersion = '1.1.1'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -84,8 +84,16 @@
         'README.md',
         'LICENSE',
         'NetTrace-Service.ps1',
+        'NetTrace-ServiceRunner.ps1',
         'NetTrace-ScheduledTask.ps1',
-        'PERSISTENT_SETUP_GUIDE.md'
+        'PERSISTENT_SETUP_GUIDE.md',
+        'Example.ps1',
+        'Test-NetTrace-Complete.ps1',
+        'Generate-NetworkTraffic.ps1',
+        'Validate-PublishReadiness.ps1',
+        'SCRIPT_ANALYZER_FIXES.md',
+        'PUBLICATION_SUMMARY.md',
+        'PUBLISH_GUIDE.md'
     )
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess
@@ -94,7 +102,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.2.0: Added Windows Service and Scheduled Task support for persistent operation. Service survives user logouts, disconnections, and reboots. Includes comprehensive setup guide, troubleshooting, and production deployment scripts. v1.1.0: Added optional logging functionality, fixed file counter accuracy, improved stop command reliability.'
+            ReleaseNotes = 'v1.1.1: Removed #Requires -RunAsAdministrator directive to allow module loading in non-admin sessions. Module now provides proper error message when run without admin privileges. Updated README with PowerShell Gallery installation instructions and admin privilege clarification. v1.1.0: Added optional logging functionality, fixed file counter accuracy, improved stop command reliability.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

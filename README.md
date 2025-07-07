@@ -250,6 +250,31 @@ Command: NetTrace -File 2 -FileSize 10 -Path 'C:\Traces'
 .\Generate-NetworkTraffic.ps1
 ```
 
+## Advanced Features
+
+### Windows Service Support
+For persistent operation that survives user logouts and system reboots, the module includes Windows Service support:
+
+```powershell
+# Install and start the NetTrace service
+.\NetTrace-ServiceRunner.ps1 -Install
+
+# Stop and remove the service
+.\NetTrace-ServiceRunner.ps1 -Uninstall
+```
+
+### Scheduled Task Support
+For automated network tracing on a schedule:
+
+```powershell
+# Create scheduled task for automated tracing
+.\NetTrace-ScheduledTask.ps1
+```
+
+### Setup Guide
+For detailed instructions on setting up persistent operation, see:
+- `PERSISTENT_SETUP_GUIDE.md` - Comprehensive guide for service and task setup
+
 ## Key Benefits
 
 ### ✅ **Professional User Experience**
@@ -309,12 +334,19 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 |------|---------|
 | `NetTrace.psm1` | Main module functionality |
 | `NetTrace.psd1` | Module manifest |
+| `NetTrace-Service.ps1` | Windows Service implementation for persistent operation |
+| `NetTrace-ServiceRunner.ps1` | Service installation and management script |
+| `NetTrace-ScheduledTask.ps1` | Scheduled Task implementation for automated tracing |
+| `PERSISTENT_SETUP_GUIDE.md` | Comprehensive guide for service and task setup |
 | `Example.ps1` | Usage examples |
 | `Test-NetTrace-Complete.ps1` | Comprehensive test suite with interactive menu |
 | `Generate-NetworkTraffic.ps1` | Network traffic generator for testing |
+| `Validate-PublishReadiness.ps1` | PowerShell Gallery publication validation script |
+| `SCRIPT_ANALYZER_FIXES.md` | PSScriptAnalyzer compliance fixes documentation |
+| `PUBLICATION_SUMMARY.md` | Publication process summary and notes |
+| `PUBLISH_GUIDE.md` | PowerShell Gallery publication instructions |
 | `README.md` | Complete documentation (this file) |
 | `LICENSE` | MIT license file |
-| `PUBLISH_GUIDE.md` | PowerShell Gallery publication instructions |
 
 ## License
 
@@ -322,6 +354,12 @@ This module is provided as-is for educational and administrative purposes.
 
 ## Version History
 
+- **v1.1.1**: Improved user experience and admin privilege handling
+  - Removed `#Requires -RunAsAdministrator` directive to allow module loading in non-admin sessions
+  - Module now provides proper error message when run without admin privileges
+  - Updated README with PowerShell Gallery installation instructions
+  - Added comprehensive admin privilege clarification and usage instructions
+  - Enhanced documentation for all module files and components
 - **v1.1.0**: Enhanced logging control and production improvements
   - Added `-Log` parameter for optional activity logging
   - Fixed file counter accuracy issues  
