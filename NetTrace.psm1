@@ -119,7 +119,7 @@ $script:PersistenceEnabled = $false
     Get-Content "C:\Traces\NetTrace_*.log" -Wait
 
     Starts network tracing and simultaneously monitors the log file for real-time activity.
-    Use Ctrl+C to stop monitoring, then use 'NetTrace -Stop' to stop the trace.
+    Use Ctrl+C to stop monitoring, then use 'NetTrace -Stop' to stop the trace or 'Get-NetTraceStatus' to check status.
 
 .EXAMPLE
     NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true
@@ -287,7 +287,7 @@ function Start-NetTraceCapture {
 
         # Create counter file for tracking counts
         $script:CounterFile = Join-Path $Path ".nettrace_counters"
-        "0,0" | Out-File -FilePath $script:CounterFile -Encoding UTF8
+        "0,0," | Out-File -FilePath $script:CounterFile -Encoding UTF8
 
         # Force stop any existing netsh trace to ensure clean start (non-blocking)
         Start-Job -ScriptBlock { & netsh trace stop 2>&1 | Out-Null } | Out-Null
@@ -325,11 +325,11 @@ function Start-NetTraceCapture {
             $computerName = $env:COMPUTERNAME
             $maxSizeBytes = $MaxSizeMB * 1MB
 
-            # Function to save counter file
+            # Function to save counter file with current file name
             function Save-CounterFile {
-                param($FilesCreated, $FilesRolled, $CounterFile)
+                param($FilesCreated, $FilesRolled, $CounterFile, $CurrentFile = "")
                 try {
-                    "$FilesCreated,$FilesRolled" | Out-File -FilePath $CounterFile -Encoding UTF8
+                    "$FilesCreated,$FilesRolled,$CurrentFile" | Out-File -FilePath $CounterFile -Encoding UTF8
                 } catch {
                     Write-Error "Failed to update counter file: $($_.Exception.Message)"
                 }
@@ -397,7 +397,7 @@ function Start-NetTraceCapture {
                 }
 
                 $filesCreated++
-                Save-CounterFile -FilesCreated $filesCreated -FilesRolled $filesRolled -CounterFile $CounterFile
+                Save-CounterFile -FilesCreated $filesCreated -FilesRolled $filesRolled -CounterFile $CounterFile -CurrentFile $fileName
 
                 # Add current file to history
                 $fileHistory += @{
@@ -440,26 +440,28 @@ function Start-NetTraceCapture {
                             # Always log to main log file
                             Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Trace stopped for file: $fileName" -LogFile $LogFile
 
-                        if ($stopProcess.ExitCode -eq 0) {
-                            $filesRolled++
-                            Save-CounterFile -FilesCreated $filesCreated -FilesRolled $filesRolled -CounterFile $CounterFile
-                            $fileRotated = $true
-                            $fileNumber++
+                            if ($stopProcess.ExitCode -eq 0) {
+                                $filesRolled++
+                                $fileRotated = $true
+                                $fileNumber++
 
-                            # Circular file management: remove oldest file if we exceed MaxFiles
-                            if ($fileHistory.Count -gt $MaxFiles) {
-                                $oldestFile = $fileHistory[0]
-                                if (Test-Path $oldestFile.Path) {
-                                    Remove-Item $oldestFile.Path -Force -ErrorAction SilentlyContinue
-                                    Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Removed oldest file: $($oldestFile.Name)" -LogFile $LogFile
+                                # Circular file management: remove oldest file if we exceed MaxFiles
+                                if ($fileHistory.Count -gt $MaxFiles) {
+                                    $oldestFile = $fileHistory[0]
+                                    if (Test-Path $oldestFile.Path) {
+                                        Remove-Item $oldestFile.Path -Force -ErrorAction SilentlyContinue
+                                        Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Removed oldest file: $($oldestFile.Name)" -LogFile $LogFile
+                                    }
+                                    # Remove from history
+                                    $fileHistory = $fileHistory[1..($fileHistory.Count-1)]
                                 }
-                                # Remove from history
-                                $fileHistory = $fileHistory[1..($fileHistory.Count-1)]
+                                
+                                # Update counter file after rotation (no current file during rotation)
+                                Save-CounterFile -FilesCreated $filesCreated -FilesRolled $filesRolled -CounterFile $CounterFile -CurrentFile ""
+                            } else {
+                                Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - ERROR: Failed to stop trace. Exit code: $($stopProcess.ExitCode)" -LogFile $LogFile
+                                break
                             }
-                        } else {
-                            Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - ERROR: Failed to stop trace. Exit code: $($stopProcess.ExitCode)" -LogFile $LogFile
-                            break
-                        }
                         }
                     } else {
                         Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - ERROR: Trace file not found: $traceFile" -LogFile $LogFile
@@ -485,7 +487,7 @@ function Start-NetTraceCapture {
         } else {
             Write-Information "Logging is disabled. Use -Log parameter to enable detailed logging." -InformationAction Continue
         }
-        Write-Information "Use 'NetTrace -Stop' to stop the trace." -InformationAction Continue
+        Write-Information "Use 'NetTrace -Stop' to stop the trace or 'Get-NetTraceStatus' to check status." -InformationAction Continue
 
         # Wait for the background job to create the first file and update counters
         Start-Sleep -Seconds 3
@@ -564,7 +566,7 @@ function Start-NetTraceServicePersistence {
             } else {
                 Write-Information "Logging is disabled. Use -Log parameter to enable detailed logging." -InformationAction Continue
             }
-            Write-Information "Use 'NetTrace -Stop' to stop the service-based trace." -InformationAction Continue
+            Write-Information "Use 'NetTrace -Stop' to stop the service-based trace or 'Get-NetTraceStatus' to check status." -InformationAction Continue
 
             # Wait a moment for service to initialize
             Start-Sleep -Seconds 3
@@ -595,10 +597,11 @@ function Get-CurrentCount {
             $content = Get-Content $script:CounterFile -ErrorAction SilentlyContinue
             if ($content) {
                 $parts = $content.Split(',')
-                if ($parts.Count -eq 2) {
+                if ($parts.Count -eq 3) {
                     return @{
                         FilesCreated = [int]$parts[0]
                         FilesRolled = [int]$parts[1]
+                        CurrentFile = $parts[2]
                     }
                 }
             }
@@ -610,6 +613,7 @@ function Get-CurrentCount {
     return @{
         FilesCreated = 0
         FilesRolled = 0
+        CurrentFile = ""
     }
 }
 
@@ -886,6 +890,7 @@ function Get-NetTraceStatus {
                 $currentCounts = Get-CurrentCount
                 $status.FilesCreated = $currentCounts.FilesCreated
                 $status.FilesRolled = $currentCounts.FilesRolled
+                $status.CurrentFile = $currentCounts.CurrentFile
                 $status.LastUpdate = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
             }
         }
