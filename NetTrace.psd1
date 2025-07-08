@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.2.0'
+    ModuleVersion = '1.2.1'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -60,7 +60,7 @@
     NestedModules = @()
 
     # Functions to export from this module
-    FunctionsToExport = @('NetTrace')
+    FunctionsToExport = @('NetTrace', 'Get-NetTraceStatus')
 
     # Cmdlets to export from this module
     CmdletsToExport = @()
@@ -81,19 +81,10 @@
     FileList = @(
         'NetTrace.psm1',
         'NetTrace.psd1',
-        'README.md',
-        'LICENSE',
         'NetTrace-Service.ps1',
         'NetTrace-ServiceRunner.ps1',
-        'NetTrace-ScheduledTask.ps1',
-        'PERSISTENT_SETUP_GUIDE.md',
-        'Example.ps1',
-        'Test-NetTrace-Complete.ps1',
-        'Generate-NetworkTraffic.ps1',
-        'Validate-PublishReadiness.ps1',
-        'SCRIPT_ANALYZER_FIXES.md',
-        'PUBLICATION_SUMMARY.md',
-        'PUBLISH_GUIDE.md'
+        'README.md',
+        'LICENSE'
     )
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess
@@ -102,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.2.0: Added persistence feature that enables network traces to continue after system reboot using native netsh trace persistent=yes parameter. New -Persistence parameter allows long-running captures that survive user session termination and system reboots. v1.1.1: Removed #Requires -RunAsAdministrator directive to allow module loading in non-admin sessions. Module now provides proper error message when run without admin privileges. Updated README with PowerShell Gallery installation instructions and admin privilege clarification. v1.1.0: Added optional logging functionality, fixed file counter accuracy, improved stop command reliability.'
+            ReleaseNotes = 'v1.2.1: Implemented true persistence using Windows Services for captures that survive user session termination and system reboots. Added Get-NetTraceStatus command for quick status checking. Enhanced -Persistence parameter to use service-based architecture for true persistence while maintaining backward compatibility. Added NetTrace-Service.ps1 and NetTrace-ServiceRunner.ps1 for service management. v1.2.0: Added persistence feature using native netsh trace persistent=yes parameter. v1.1.1: Removed #Requires -RunAsAdministrator directive to allow module loading in non-admin sessions. v1.1.0: Added optional logging functionality, fixed file counter accuracy, improved stop command reliability.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

@@ -119,13 +119,23 @@ NetTrace -Stop
 ## Persistence Feature
 
 ### Overview
-The `-Persistence` parameter enables network traces that continue after system reboot using the native netsh trace `persistent=yes` parameter. This feature is ideal for long-running captures that need to survive user session termination and system reboots.
+The `-Persistence` parameter enables **true persistent network traces** that survive user session termination and system reboots using a Windows Service-based architecture. This advanced feature provides enterprise-grade persistence beyond what netsh trace's `persistent=yes` parameter alone can offer.
 
 ### How It Works
-- **Native Integration**: Uses netsh trace's built-in `persistent=yes` parameter
-- **Automatic Resume**: Capture automatically resumes after system reboot
-- **Session Independence**: Continues even if user logs out or session terminates
-- **File Continuity**: Maintains the same file rotation and circular management
+- **Service-Based Architecture**: Uses Windows Services for true session-independent operation
+- **Automatic Monitoring**: File rotation and circular management continue regardless of user sessions
+- **System Reboot Survival**: Capture automatically resumes after system reboot
+- **Complete Independence**: No dependency on PowerShell sessions or user logins
+- **Native Integration**: Still uses netsh trace's `persistent=yes` parameter for optimal performance
+
+### True Persistence vs Basic Persistence
+| Feature | Basic (netsh only) | True Persistence (Service) |
+|---------|-------------------|---------------------------|
+| Survives reboot | ✅ | ✅ |
+| Survives user logout | ❌ | ✅ |
+| File rotation continues | ❌ | ✅ |
+| Circular management | ❌ | ✅ |
+| Session independence | ❌ | ✅ |
 
 ### Usage
 ```powershell
@@ -133,16 +143,29 @@ NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true
 ```
 
 ### Benefits
-- **Long-term Monitoring**: Ideal for extended network analysis
-- **System Reboot Survival**: Capture continues through maintenance windows
-- **Session Independence**: No need to keep PowerShell session active
-- **Production Ready**: Suitable for enterprise monitoring scenarios
+- **True Session Independence**: Continues even when all users log out
+- **Complete File Management**: Automatic rotation and circular management persist
+- **Enterprise Ready**: Suitable for production monitoring and long-term analysis
+- **Maintenance Window Safe**: Survives system reboots and maintenance activities
+- **Zero User Intervention**: Runs completely independently once started
+
+### Service Management
+The persistence feature automatically manages Windows Services behind the scenes:
+
+```powershell
+# Check service status
+Get-NetTraceStatus
+
+# Stop persistent trace (same command as always)
+NetTrace -Stop
+```
 
 ### Recommendations
 - **File Size**: Use `-FileSize >= 10MB` for optimal performance with persistence
 - **Monitoring**: Combine with `-Log` parameter for comprehensive tracking
 - **Storage**: Ensure adequate disk space for extended captures
-- **Cleanup**: Remember to use `NetTrace -Stop` when capture is complete
+- **Service Logs**: Check `$env:ProgramData\NetTrace\service.log` for service-level diagnostics
+- **Cleanup**: Always use `NetTrace -Stop` when capture is complete
 
 ### Example Output
 ```powershell
@@ -150,14 +173,35 @@ NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true -Log
 ```
 **Output:**
 ```
-Starting network trace...
+Starting service-based persistent network trace...
 Path: C:\Traces
 Max Files: 3
 Max Size: 10 MB
-Persistence: Enabled (capture will resume after reboot)
-Trace monitoring started in background.
-All output is being logged to: C:\Traces\NetTrace_2025-06-28_145500.log
-Use 'NetTrace -Stop' to stop the trace.
+Service-based persistence: Enabled (capture will survive user session termination)
+Service-based persistent trace started successfully.
+All output is being logged to: C:\Traces\NetTrace_2025-07-08_144228.log
+You can monitor progress with: Get-Content 'C:\Traces\NetTrace_*.log' -Wait
+Use 'NetTrace -Stop' to stop the service-based trace.
+```
+
+### Status Monitoring
+Use the new `Get-NetTraceStatus` command for quick status checks:
+
+```powershell
+Get-NetTraceStatus
+```
+**Output:**
+```
+IsRunning     : True
+FilesCreated  : 2
+FilesRolled   : 1
+Mode          : Service
+Path          : C:\Traces
+MaxFiles      : 3
+MaxSizeMB     : 10
+Persistence   : True
+LoggingEnabled: True
+LastUpdate    : 2025-07-08 14:45:30
 ```
 
 ## Examples
@@ -232,6 +276,12 @@ NetTrace -Stop
 Trace stopped.
 Final logs saved to: C:\Traces\NetTrace_2025-06-28_145500.log
 ```
+
+### Check Status
+```powershell
+Get-NetTraceStatus
+```
+**Shows current trace status, file counts, and configuration for both job-based and service-based traces**
 
 ## How Circular File Management Works
 
@@ -386,21 +436,21 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 | File | Purpose |
 |------|---------|
-| `NetTrace.psm1` | Main module functionality |
+| `NetTrace.psm1` | Main module functionality with dual-mode operation support |
 | `NetTrace.psd1` | Module manifest |
-| `NetTrace-Service.ps1` | Windows Service implementation for persistent operation |
+| `NetTrace-Service.ps1` | Windows Service implementation for true persistent operation |
 | `NetTrace-ServiceRunner.ps1` | Service installation and management script |
-| `NetTrace-ScheduledTask.ps1` | Scheduled Task implementation for automated tracing |
-| `PERSISTENT_SETUP_GUIDE.md` | Comprehensive guide for service and task setup |
-| `Example.ps1` | Usage examples |
-| `Test-NetTrace-Complete.ps1` | Comprehensive test suite with interactive menu |
-| `Generate-NetworkTraffic.ps1` | Network traffic generator for testing |
-| `Validate-PublishReadiness.ps1` | PowerShell Gallery publication validation script |
-| `SCRIPT_ANALYZER_FIXES.md` | PSScriptAnalyzer compliance fixes documentation |
-| `PUBLICATION_SUMMARY.md` | Publication process summary and notes |
-| `PUBLISH_GUIDE.md` | PowerShell Gallery publication instructions |
 | `README.md` | Complete documentation (this file) |
 | `LICENSE` | MIT license file |
+
+### Core Functions
+- **`NetTrace`**: Main function with automatic persistence mode detection
+- **`Get-NetTraceStatus`**: Quick status checking for both job-based and service-based traces
+
+### Service Architecture
+- **Job-based Mode**: Traditional PowerShell background jobs (default for non-persistent traces)
+- **Service-based Mode**: Windows Services for true persistence (enabled with `-Persistence true`)
+- **Automatic Detection**: Unified `NetTrace -Stop` command works with both modes
 
 ## License
 
@@ -408,7 +458,15 @@ This module is provided as-is for educational and administrative purposes.
 
 ## Version History
 
-- **v1.2.0**: Added persistence feature for long-running captures
+- **v1.2.1**: Implemented true persistence using Windows Services
+  - **True Persistence**: Service-based architecture for captures that survive user session termination and system reboots
+  - **Enhanced -Persistence Parameter**: Now uses Windows Services for true session-independent operation
+  - **New Command**: Added `Get-NetTraceStatus` for quick status checking without requiring -Log parameter
+  - **Service Management**: Added `NetTrace-Service.ps1` and `NetTrace-ServiceRunner.ps1` for service operations
+  - **Dual-Mode Operation**: Automatic detection between job-based and service-based persistence
+  - **Backward Compatibility**: Existing functionality unchanged, enhanced persistence is opt-in
+  - **Unified Stop Command**: Single `NetTrace -Stop` command works for both job-based and service-based traces
+- **v1.2.0**: Added basic persistence feature for long-running captures
   - Added `-Persistence` parameter for captures that survive system reboot
   - Integrated native netsh trace `persistent=yes` parameter
   - Enhanced logging to include persistence status and configuration
