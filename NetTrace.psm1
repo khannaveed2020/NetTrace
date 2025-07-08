@@ -76,7 +76,7 @@ $script:PersistenceEnabled = $false
     This feature utilizes the native netsh trace 'persistent=yes' parameter. When enabled, the capture
     will continue even if the user session is terminated or the system is rebooted. It's recommended
     to use FileSize >= 10MB when persistence is enabled to avoid potential issues.
-    
+
     Accepts multiple formats: $true/$false, true/false, or "true"/"false" (case-insensitive).
 
 .PARAMETER Verbose
@@ -183,12 +183,12 @@ function NetTrace {
         if ([string]::IsNullOrWhiteSpace($Path)) {
             throw "Path parameter is required"
         }
-        
+
         # Convert persistence parameter to boolean if it's a string
         if ($Persistence -is [string]) {
             $Persistence = $Persistence.ToLower() -eq 'true' -or $Persistence.ToLower() -eq '$true'
         }
-        
+
         # Validate persistence parameter
         if ($Persistence -and $FileSize -lt 10) {
             Write-Warning "Persistence is enabled but FileSize is less than 10MB. For persistent captures, it's recommended to use FileSize >= 10MB to avoid potential issues."
@@ -246,7 +246,7 @@ function Start-NetTraceCapture {
         if ($Persistence -is [string]) {
             $Persistence = $Persistence.ToLower() -eq 'true' -or $Persistence.ToLower() -eq '$true'
         }
-        
+
         $script:TracePath = $Path
         $script:MaxFiles = $MaxFiles
         $script:MaxSizeMB = $MaxSizeMB
@@ -364,7 +364,7 @@ function Start-NetTraceCapture {
 
                 # Start netsh trace with report disabled and no additional data capture
                 $arguments = @("trace", "start", "capture=yes", "report=disabled", "overwrite=yes", "maxSize=$MaxSizeMB", "tracefile=`"$traceFile`"")
-                
+
                 # Add persistent parameter if persistence is enabled
                 if ($Persistence) {
                     $arguments += "persistent=yes"
