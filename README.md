@@ -68,7 +68,7 @@ NetTrace -Stop
 - **`-Log`**: Enables detailed activity logging to timestamped log files (optional)
 - **`-Verbose`**: Shows detailed progress information (optional)
 - **`-LogNetshOutput`**: Saves netsh technical details to `netsh_trace.log` (optional)
-- **`-Persistence`**: Enables persistent capture that continues after system reboot (optional)
+- **`-Persistence`**: Enables persistent capture that continues after system reboot (optional). Accepts: $true/$false, true/false, or "true"/"false"
 - **`-Stop`**: Stops the currently running trace
 
 **Important**: Netsh trace has a minimum file size of 10MB. Values less than 10MB will cause netsh to default to 512MB files.
@@ -209,7 +209,10 @@ NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -Log -LogNetshOutput
 
 ### With Persistence (Survives System Reboot)
 ```powershell
+# All these formats work:
 NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true -Log
+NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence $true -Log
+NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence "true" -Log
 ```
 **Creates persistent network trace that continues after system reboot with detailed logging**
 

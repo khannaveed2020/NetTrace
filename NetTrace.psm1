@@ -38,6 +38,7 @@ $script:FilesRolled = 0
 $script:CurrentLogFile = $null
 $script:MonitorFlag = $null
 $script:CounterFile = $null
+$script:PersistenceEnabled = $false
 
 <#
 .SYNOPSIS
@@ -75,6 +76,8 @@ $script:CounterFile = $null
     This feature utilizes the native netsh trace 'persistent=yes' parameter. When enabled, the capture
     will continue even if the user session is terminated or the system is rebooted. It's recommended
     to use FileSize >= 10MB when persistence is enabled to avoid potential issues.
+    
+    Accepts multiple formats: $true/$false, true/false, or "true"/"false" (case-insensitive).
 
 .PARAMETER Verbose
     Shows detailed information about files created, rolled, and deleted during circular management.
@@ -147,7 +150,8 @@ function NetTrace {
         [switch]$Log,
 
         [Parameter(Mandatory=$false)]
-        [bool]$Persistence = $false
+        [ValidateSet('true', 'false', '$true', '$false', $true, $false)]
+        [object]$Persistence = $false
     )
 
     try {
@@ -178,6 +182,11 @@ function NetTrace {
         }
         if ([string]::IsNullOrWhiteSpace($Path)) {
             throw "Path parameter is required"
+        }
+        
+        # Convert persistence parameter to boolean if it's a string
+        if ($Persistence -is [string]) {
+            $Persistence = $Persistence.ToLower() -eq 'true' -or $Persistence.ToLower() -eq '$true'
         }
         
         # Validate persistence parameter
@@ -228,15 +237,22 @@ function Start-NetTraceCapture {
         [bool]$EnableLogging = $false,
 
         [Parameter()]
-        [bool]$Persistence = $false
+        [ValidateSet('true', 'false', '$true', '$false', $true, $false)]
+        [object]$Persistence = $false
     )
 
     try {
+        # Convert persistence parameter to boolean if it's a string
+        if ($Persistence -is [string]) {
+            $Persistence = $Persistence.ToLower() -eq 'true' -or $Persistence.ToLower() -eq '$true'
+        }
+        
         $script:TracePath = $Path
         $script:MaxFiles = $MaxFiles
         $script:MaxSizeMB = $MaxSizeMB
         $script:FilesCreated = 0
         $script:FilesRolled = 0
+        $script:PersistenceEnabled = $Persistence
 
         if ($VerbosePreference -eq 'Continue') {
             Write-Information "Starting network trace..." -InformationAction Continue
@@ -476,6 +492,7 @@ function Start-NetTraceCapture {
             FilesCreated = $currentCounts.FilesCreated
             FilesRolled = $currentCounts.FilesRolled
             Success = $true
+            Persistence = $Persistence
         }
     }
     catch {
@@ -578,6 +595,7 @@ function Stop-NetTraceCapture {
                 Success = $true
                 FilesCreated = $finalCounts.FilesCreated
                 FilesRolled = $finalCounts.FilesRolled
+                Persistence = $script:PersistenceEnabled
             }
         } else {
             if ($VerbosePreference -eq 'Continue') {
