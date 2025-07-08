@@ -530,59 +530,62 @@ function Start-NetTraceServicePersistence {
     )
 
     try {
-        # Get script directory to find service files - they are in the same directory as the module
-        $moduleDir = $PSScriptRoot
-        if (-not $moduleDir) {
-            $moduleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-        }
-        
-        $serviceScript = Join-Path $moduleDir "NetTrace-Service.ps1"
-        
-        # Check if service script exists
-        if (!(Test-Path $serviceScript)) {
-            throw "NetTrace-Service.ps1 not found. Service-based persistence requires the service script to be available."
-        }
+        # Check if we should process
+        if ($PSCmdlet.ShouldProcess("NetTrace Service", "Start persistent network trace")) {
+            # Get script directory to find service files - they are in the same directory as the module
+            $moduleDir = $PSScriptRoot
+            if (-not $moduleDir) {
+                $moduleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+            }
+            
+            $serviceScript = Join-Path $moduleDir "NetTrace-Service.ps1"
+            
+            # Check if service script exists
+            if (!(Test-Path $serviceScript)) {
+                throw "NetTrace-Service.ps1 not found. Service-based persistence requires the service script to be available."
+            }
 
-        # Import service functions
-        . $serviceScript
+            # Import service functions
+            . $serviceScript
 
-        if ($VerbosePreference -eq 'Continue') {
-            Write-Information "Starting service-based persistent network trace..." -InformationAction Continue
-            Write-Information "Path: $Path" -InformationAction Continue
-            Write-Information "Max Files: $MaxFiles" -InformationAction Continue
-            Write-Information "Max Size: $MaxSizeMB MB" -InformationAction Continue
-            Write-Information "Service-based persistence: Enabled (capture will survive user session termination)" -InformationAction Continue
-        }
+            if ($VerbosePreference -eq 'Continue') {
+                Write-Information "Starting service-based persistent network trace..." -InformationAction Continue
+                Write-Information "Path: $Path" -InformationAction Continue
+                Write-Information "Max Files: $MaxFiles" -InformationAction Continue
+                Write-Information "Max Size: $MaxSizeMB MB" -InformationAction Continue
+                Write-Information "Service-based persistence: Enabled (capture will survive user session termination)" -InformationAction Continue
+            }
 
-        # Start the service-based monitoring
-        $success = Start-NetTraceService -Path $Path -MaxFiles $MaxFiles -MaxSizeMB $MaxSizeMB -LogOutput $LogOutput -EnableLogging $EnableLogging
+            # Start the service-based monitoring
+            $success = Start-NetTraceService -Path $Path -MaxFiles $MaxFiles -MaxSizeMB $MaxSizeMB -LogOutput $LogOutput -EnableLogging $EnableLogging
 
-        if ($success) {
-            Write-Information "Service-based persistent trace started successfully." -InformationAction Continue
-            if ($EnableLogging) {
-                $logFile = Join-Path $Path "NetTrace_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').log"
-                Write-Information "All output is being logged to: $logFile" -InformationAction Continue
-                Write-Information "You can monitor progress with: Get-Content '$Path\NetTrace_*.log' -Wait" -InformationAction Continue
+            if ($success) {
+                Write-Information "Service-based persistent trace started successfully." -InformationAction Continue
+                if ($EnableLogging) {
+                    $logFile = Join-Path $Path "NetTrace_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').log"
+                    Write-Information "All output is being logged to: $logFile" -InformationAction Continue
+                    Write-Information "You can monitor progress with: Get-Content '$Path\NetTrace_*.log' -Wait" -InformationAction Continue
+                } else {
+                    Write-Information "Logging is disabled. Use -Log parameter to enable detailed logging." -InformationAction Continue
+                }
+                Write-Information "Use 'NetTrace -Stop' to stop the service-based trace or 'Get-NetTraceStatus' to check status." -InformationAction Continue
+
+                # Wait a moment for service to initialize
+                Start-Sleep -Seconds 3
+
+                # Get current status from service
+                $serviceStatus = Get-ServiceStatus
+
+                return @{
+                    FilesCreated = $serviceStatus.FilesCreated
+                    FilesRolled = $serviceStatus.FilesRolled
+                    Success = $true
+                    Persistence = $true
+                    Mode = "Service"
+                }
             } else {
-                Write-Information "Logging is disabled. Use -Log parameter to enable detailed logging." -InformationAction Continue
+                throw "Failed to start service-based persistence"
             }
-            Write-Information "Use 'NetTrace -Stop' to stop the service-based trace or 'Get-NetTraceStatus' to check status." -InformationAction Continue
-
-            # Wait a moment for service to initialize
-            Start-Sleep -Seconds 3
-
-            # Get current status from service
-            $serviceStatus = Get-ServiceStatus
-
-            return @{
-                FilesCreated = $serviceStatus.FilesCreated
-                FilesRolled = $serviceStatus.FilesRolled
-                Success = $true
-                Persistence = $true
-                Mode = "Service"
-            }
-        } else {
-            throw "Failed to start service-based persistence"
         }
     }
     catch {
