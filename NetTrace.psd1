@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.1.1'
+    ModuleVersion = '1.2.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -21,7 +21,7 @@
     Copyright = '(c) 2025 Naveed Khan. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'PowerShell module for Windows network tracing using netsh trace with automatic circular file rotation and background monitoring. Features include configurable file size limits, circular buffer management, non-blocking operation, optional activity logging, technical diagnostics, and administrator privilege validation.'
+    Description = 'PowerShell module for Windows network tracing using netsh trace with automatic circular file rotation and background monitoring. Features include configurable file size limits, circular buffer management, non-blocking operation, optional activity logging, technical diagnostics, administrator privilege validation, and persistent capture support that continues after system reboot.'
 
     # Minimum version of the Windows PowerShell engine required by this module
     PowerShellVersion = '5.1'
@@ -102,7 +102,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.1.1: Removed #Requires -RunAsAdministrator directive to allow module loading in non-admin sessions. Module now provides proper error message when run without admin privileges. Updated README with PowerShell Gallery installation instructions and admin privilege clarification. v1.1.0: Added optional logging functionality, fixed file counter accuracy, improved stop command reliability.'
+            ReleaseNotes = 'v1.2.0: Added persistence feature that enables network traces to continue after system reboot using native netsh trace persistent=yes parameter. New -Persistence parameter allows long-running captures that survive user session termination and system reboots. v1.1.1: Removed #Requires -RunAsAdministrator directive to allow module loading in non-admin sessions. Module now provides proper error message when run without admin privileges. Updated README with PowerShell Gallery installation instructions and admin privilege clarification. v1.1.0: Added optional logging functionality, fixed file counter accuracy, improved stop command reliability.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

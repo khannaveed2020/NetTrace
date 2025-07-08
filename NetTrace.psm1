@@ -70,6 +70,12 @@ $script:CounterFile = $null
     Without this parameter, the module operates without creating log files, reducing disk I/O.
     Recommended for troubleshooting or monitoring trace progress.
 
+.PARAMETER Persistence
+    When set to true, enables persistent capture that will automatically resume after a system reboot.
+    This feature utilizes the native netsh trace 'persistent=yes' parameter. When enabled, the capture
+    will continue even if the user session is terminated or the system is rebooted. It's recommended
+    to use FileSize >= 10MB when persistence is enabled to avoid potential issues.
+
 .PARAMETER Verbose
     Shows detailed information about files created, rolled, and deleted during circular management.
 
@@ -111,6 +117,13 @@ $script:CounterFile = $null
 
     Starts network tracing and simultaneously monitors the log file for real-time activity.
     Use Ctrl+C to stop monitoring, then use 'NetTrace -Stop' to stop the trace.
+
+.EXAMPLE
+    NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true
+
+    Creates a persistent network trace that will continue even after system reboot.
+    Maintains 3 files of 10MB each with automatic circular rotation. The capture will
+    automatically resume after reboot, making it ideal for long-running captures.
 #>
 function NetTrace {
     [CmdletBinding()]
@@ -131,7 +144,10 @@ function NetTrace {
         [switch]$LogNetshOutput,
 
         [Parameter(Mandatory=$false)]
-        [switch]$Log
+        [switch]$Log,
+
+        [Parameter(Mandatory=$false)]
+        [bool]$Persistence = $false
     )
 
     try {
@@ -163,6 +179,11 @@ function NetTrace {
         if ([string]::IsNullOrWhiteSpace($Path)) {
             throw "Path parameter is required"
         }
+        
+        # Validate persistence parameter
+        if ($Persistence -and $FileSize -lt 10) {
+            Write-Warning "Persistence is enabled but FileSize is less than 10MB. For persistent captures, it's recommended to use FileSize >= 10MB to avoid potential issues."
+        }
 
         # Ensure directory exists
         if (!(Test-Path $Path)) {
@@ -179,7 +200,7 @@ function NetTrace {
         }
 
         # Start trace capture
-        Start-NetTraceCapture -Path $Path -MaxFiles $File -MaxSizeMB $FileSize -LogOutput:$LogNetshOutput -EnableLogging:$Log
+        Start-NetTraceCapture -Path $Path -MaxFiles $File -MaxSizeMB $FileSize -LogOutput:$LogNetshOutput -EnableLogging:$Log -Persistence:$Persistence
     }
     catch {
         Write-Error "Error in NetTrace: $($_.Exception.Message)"
@@ -204,7 +225,10 @@ function Start-NetTraceCapture {
         [bool]$LogOutput = $false,
 
         [Parameter()]
-        [bool]$EnableLogging = $false
+        [bool]$EnableLogging = $false,
+
+        [Parameter()]
+        [bool]$Persistence = $false
     )
 
     try {
@@ -219,13 +243,20 @@ function Start-NetTraceCapture {
             Write-Information "Path: $Path" -InformationAction Continue
             Write-Information "Max Files: $MaxFiles" -InformationAction Continue
             Write-Information "Max Size: $MaxSizeMB MB" -InformationAction Continue
+            if ($Persistence) {
+                Write-Information "Persistence: Enabled (capture will resume after reboot)" -InformationAction Continue
+            }
         }
 
         # Create log file for all output if logging is enabled
         if ($EnableLogging) {
             $script:CurrentLogFile = Join-Path $Path "NetTrace_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').log"
             "NetTrace session started at $(Get-Date)" | Out-File -FilePath $script:CurrentLogFile -Encoding UTF8
-            "Command: NetTrace -File $MaxFiles -FileSize $MaxSizeMB -Path '$Path'" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
+            $commandLine = "Command: NetTrace -File $MaxFiles -FileSize $MaxSizeMB -Path '$Path'"
+            if ($Persistence) {
+                $commandLine += " -Persistence true"
+            }
+            $commandLine | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
             "=" * 60 | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
             "" | Out-File -FilePath $script:CurrentLogFile -Append -Encoding UTF8
         } else {
@@ -263,6 +294,7 @@ function Start-NetTraceCapture {
             $LogOutput = $using:LogOutput
             $LogFile = $using:script:CurrentLogFile
             $CounterFile = $using:script:CounterFile
+            $Persistence = $using:Persistence
 
             $fileNumber = 1
             $filesCreated = 0
@@ -310,9 +342,17 @@ function Start-NetTraceCapture {
 
                 # Log file creation
                 Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Creating File #$fileNumber : $fileName" -LogFile $LogFile
+                if ($Persistence) {
+                    Write-ToLog -Message "$(Get-Date -Format 'HH:mm:ss') - Persistence enabled - capture will resume after reboot" -LogFile $LogFile
+                }
 
                 # Start netsh trace with report disabled and no additional data capture
                 $arguments = @("trace", "start", "capture=yes", "report=disabled", "overwrite=yes", "maxSize=$MaxSizeMB", "tracefile=`"$traceFile`"")
+                
+                # Add persistent parameter if persistence is enabled
+                if ($Persistence) {
+                    $arguments += "persistent=yes"
+                }
 
                 # Execute netsh and capture output to suppress console spam
                 $netshOutput = & netsh $arguments 2>&1

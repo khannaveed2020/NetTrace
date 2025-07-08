@@ -68,6 +68,7 @@ NetTrace -Stop
 - **`-Log`**: Enables detailed activity logging to timestamped log files (optional)
 - **`-Verbose`**: Shows detailed progress information (optional)
 - **`-LogNetshOutput`**: Saves netsh technical details to `netsh_trace.log` (optional)
+- **`-Persistence`**: Enables persistent capture that continues after system reboot (optional)
 - **`-Stop`**: Stops the currently running trace
 
 **Important**: Netsh trace has a minimum file size of 10MB. Values less than 10MB will cause netsh to default to 512MB files.
@@ -115,6 +116,50 @@ NetTrace -Stop
 - Reduced disk space usage
 - Clean operation for production environments
 
+## Persistence Feature
+
+### Overview
+The `-Persistence` parameter enables network traces that continue after system reboot using the native netsh trace `persistent=yes` parameter. This feature is ideal for long-running captures that need to survive user session termination and system reboots.
+
+### How It Works
+- **Native Integration**: Uses netsh trace's built-in `persistent=yes` parameter
+- **Automatic Resume**: Capture automatically resumes after system reboot
+- **Session Independence**: Continues even if user logs out or session terminates
+- **File Continuity**: Maintains the same file rotation and circular management
+
+### Usage
+```powershell
+NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true
+```
+
+### Benefits
+- **Long-term Monitoring**: Ideal for extended network analysis
+- **System Reboot Survival**: Capture continues through maintenance windows
+- **Session Independence**: No need to keep PowerShell session active
+- **Production Ready**: Suitable for enterprise monitoring scenarios
+
+### Recommendations
+- **File Size**: Use `-FileSize >= 10MB` for optimal performance with persistence
+- **Monitoring**: Combine with `-Log` parameter for comprehensive tracking
+- **Storage**: Ensure adequate disk space for extended captures
+- **Cleanup**: Remember to use `NetTrace -Stop` when capture is complete
+
+### Example Output
+```powershell
+NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true -Log
+```
+**Output:**
+```
+Starting network trace...
+Path: C:\Traces
+Max Files: 3
+Max Size: 10 MB
+Persistence: Enabled (capture will resume after reboot)
+Trace monitoring started in background.
+All output is being logged to: C:\Traces\NetTrace_2025-06-28_145500.log
+Use 'NetTrace -Stop' to stop the trace.
+```
+
 ## Examples
 
 ### Basic Usage (No Logging - Minimal Disk I/O)
@@ -161,6 +206,12 @@ NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -LogNetshOutput
 NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -Log -LogNetshOutput
 ```
 **Creates both activity logs and technical netsh logs for comprehensive troubleshooting**
+
+### With Persistence (Survives System Reboot)
+```powershell
+NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true -Log
+```
+**Creates persistent network trace that continues after system reboot with detailed logging**
 
 ### Monitor Progress (Optional - Requires `-Log` Parameter)
 ```powershell
@@ -354,6 +405,12 @@ This module is provided as-is for educational and administrative purposes.
 
 ## Version History
 
+- **v1.2.0**: Added persistence feature for long-running captures
+  - Added `-Persistence` parameter for captures that survive system reboot
+  - Integrated native netsh trace `persistent=yes` parameter
+  - Enhanced logging to include persistence status and configuration
+  - Updated documentation with comprehensive persistence feature guide
+  - Added persistence examples and usage recommendations
 - **v1.1.1**: Improved user experience and admin privilege handling
   - Removed `#Requires -RunAsAdministrator` directive to allow module loading in non-admin sessions
   - Module now provides proper error message when run without admin privileges
