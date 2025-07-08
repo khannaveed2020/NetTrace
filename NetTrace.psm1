@@ -530,8 +530,8 @@ function Start-NetTraceServicePersistence {
     )
 
     try {
-        # Get script directory to find service files
-        $moduleDir = Split-Path -Parent $PSScriptRoot
+        # Get script directory to find service files - they are in the same directory as the module
+        $moduleDir = $PSScriptRoot
         if (-not $moduleDir) {
             $moduleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
         }
@@ -630,7 +630,7 @@ function Stop-NetTraceCapture {
         # Check if service-based persistence is running
         $serviceRunning = $false
         try {
-            $moduleDir = Split-Path -Parent $PSScriptRoot
+            $moduleDir = $PSScriptRoot
             if (-not $moduleDir) {
                 $moduleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             }
@@ -840,7 +840,7 @@ function Get-NetTraceStatus {
         # Check service-based persistence first
         $serviceRunning = $false
         try {
-            $moduleDir = Split-Path -Parent $PSScriptRoot
+            $moduleDir = $PSScriptRoot
             if (-not $moduleDir) {
                 $moduleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             }
