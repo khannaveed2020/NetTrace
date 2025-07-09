@@ -455,7 +455,7 @@ function Start-NetTraceCapture {
                                     # Remove from history
                                     $fileHistory = $fileHistory[1..($fileHistory.Count-1)]
                                 }
-                                
+
                                 # Update counter file after rotation (no current file during rotation)
                                 Save-CounterFile -FilesCreated $filesCreated -FilesRolled $filesRolled -CounterFile $CounterFile -CurrentFile ""
                             } else {
@@ -531,36 +531,50 @@ function Start-NetTraceServicePersistence {
 
     try {
         # Check if we should process
-        if ($PSCmdlet.ShouldProcess("NetTrace Service", "Start persistent network trace")) {
+        if ($PSCmdlet.ShouldProcess("NetTrace Windows Service", "Start persistent network trace")) {
             # Get script directory to find service files - they are in the same directory as the module
             $moduleDir = $PSScriptRoot
             if (-not $moduleDir) {
                 $moduleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             }
-            
-            $serviceScript = Join-Path $moduleDir "NetTrace-Service.ps1"
-            
-            # Check if service script exists
-            if (!(Test-Path $serviceScript)) {
-                throw "NetTrace-Service.ps1 not found. Service-based persistence requires the service script to be available."
+
+            $serviceRunnerScript = Join-Path $moduleDir "NetTrace-ServiceRunner.ps1"
+
+            # Check if service runner script exists
+            if (!(Test-Path $serviceRunnerScript)) {
+                throw "NetTrace-ServiceRunner.ps1 not found. Windows Service persistence requires the service runner script to be available."
             }
 
-            # Import service functions
-            . $serviceScript
-
             if ($VerbosePreference -eq 'Continue') {
-                Write-Information "Starting service-based persistent network trace..." -InformationAction Continue
+                Write-Information "Starting Windows Service persistent network trace..." -InformationAction Continue
                 Write-Information "Path: $Path" -InformationAction Continue
                 Write-Information "Max Files: $MaxFiles" -InformationAction Continue
                 Write-Information "Max Size: $MaxSizeMB MB" -InformationAction Continue
-                Write-Information "Service-based persistence: Enabled (capture will survive user session termination)" -InformationAction Continue
+                Write-Information "True Windows Service persistence: Enabled (capture will survive user session termination and system reboots)" -InformationAction Continue
             }
 
-            # Start the service-based monitoring
-            $success = Start-NetTraceService -Path $Path -MaxFiles $MaxFiles -MaxSizeMB $MaxSizeMB -LogOutput $LogOutput -EnableLogging $EnableLogging
+            # Use the service runner to start the Windows Service
+            $arguments = @(
+                "-Start"
+                "-Path", "`"$Path`""
+                "-MaxFiles", $MaxFiles
+                "-MaxSizeMB", $MaxSizeMB
+            )
 
-            if ($success) {
-                Write-Information "Service-based persistent trace started successfully." -InformationAction Continue
+            if ($LogOutput) {
+                $arguments += "-LogOutput"
+            }
+
+            if ($EnableLogging) {
+                $arguments += "-EnableLogging"
+            }
+
+            # Start the Windows Service using the service runner
+            & powershell.exe -ExecutionPolicy Bypass -File $serviceRunnerScript @arguments | Out-Null
+            $exitCode = $LASTEXITCODE
+
+            if ($exitCode -eq 0) {
+                Write-Information "Windows Service persistent trace started successfully." -InformationAction Continue
                 if ($EnableLogging) {
                     $logFile = Join-Path $Path "NetTrace_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').log"
                     Write-Information "All output is being logged to: $logFile" -InformationAction Continue
@@ -568,29 +582,76 @@ function Start-NetTraceServicePersistence {
                 } else {
                     Write-Information "Logging is disabled. Use -Log parameter to enable detailed logging." -InformationAction Continue
                 }
-                Write-Information "Use 'NetTrace -Stop' to stop the service-based trace or 'Get-NetTraceStatus' to check status." -InformationAction Continue
+                Write-Information "Use 'NetTrace -Stop' to stop the Windows Service trace or 'Get-NetTraceStatus' to check status." -InformationAction Continue
 
-                # Wait a moment for service to initialize
-                Start-Sleep -Seconds 3
+                # Wait a moment for Windows Service to initialize
+                Start-Sleep -Seconds 5
 
-                # Get current status from service
-                $serviceStatus = Get-ServiceStatus
+                # Get current status from Windows Service
+                $serviceStatus = Get-WindowsServiceStatus
 
                 return @{
                     FilesCreated = $serviceStatus.FilesCreated
                     FilesRolled = $serviceStatus.FilesRolled
                     Success = $true
                     Persistence = $true
-                    Mode = "Service"
+                    Mode = "WindowsService"
                 }
             } else {
-                throw "Failed to start service-based persistence"
+                throw "Failed to start Windows Service persistence. Exit code: $exitCode"
             }
         }
     }
     catch {
-        Write-Error "Error starting service-based persistent network trace: $($_.Exception.Message)"
+        Write-Error "Error starting Windows Service persistent network trace: $($_.Exception.Message)"
         throw
+    }
+}
+
+function Get-WindowsServiceStatus {
+    <#
+    .SYNOPSIS
+        Gets the current status of the NetTrace Windows Service
+    .DESCRIPTION
+        Retrieves status information from the Windows Service including files created, rolled, and current file
+    #>
+
+    try {
+        # Get script directory to find service files
+        $moduleDir = $PSScriptRoot
+        if (-not $moduleDir) {
+            $moduleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+        }
+
+        $serviceScript = Join-Path $moduleDir "NetTrace-Service.ps1"
+
+        # Check if service script exists
+        if (!(Test-Path $serviceScript)) {
+            return @{
+                FilesCreated = 0
+                FilesRolled = 0
+                CurrentFile = ""
+                LastUpdate = ""
+                ErrorMessage = "Service script not found"
+            }
+        }
+
+        # Import service functions
+        . $serviceScript
+
+        # Get status from Windows Service
+        $serviceStatus = Get-ServiceStatus
+
+        return $serviceStatus
+    }
+    catch {
+        return @{
+            FilesCreated = 0
+            FilesRolled = 0
+            CurrentFile = ""
+            LastUpdate = ""
+            ErrorMessage = $_.Exception.Message
+        }
     }
 }
 
@@ -630,45 +691,55 @@ function Stop-NetTraceCapture {
             Write-Information "Stopping network trace..." -InformationAction Continue
         }
 
-        # Check if service-based persistence is running
+        # Check if Windows Service persistence is running
         $serviceRunning = $false
         try {
             $moduleDir = $PSScriptRoot
             if (-not $moduleDir) {
                 $moduleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             }
-            
-            $serviceScript = Join-Path $moduleDir "NetTrace-Service.ps1"
-            if (Test-Path $serviceScript) {
-                . $serviceScript
-                $serviceStatus = Get-ServiceStatus
-                $serviceRunning = $serviceStatus.IsRunning
+
+            # Check if Windows Service is running
+            $windowsService = Get-Service -Name "NetTraceService" -ErrorAction SilentlyContinue
+            if ($windowsService -and $windowsService.Status -eq 'Running') {
+                $serviceRunning = $true
             }
         } catch {
-            # Service script not available or error checking status
+            # Service not available or error checking status
             $serviceRunning = $false
         }
 
         if ($serviceRunning) {
-            # Stop service-based persistence
-            Write-Information "Stopping service-based persistent trace..." -InformationAction Continue
-            $success = Stop-NetTraceService
-            
-            if ($success) {
-                Write-Information "Service-based persistent trace stopped." -InformationAction Continue
-                $finalStatus = Get-ServiceStatus
-                return @{
-                    Success = $true
-                    FilesCreated = $finalStatus.FilesCreated
-                    FilesRolled = $finalStatus.FilesRolled
-                    Persistence = $true
-                    Mode = "Service"
+            # Stop Windows Service persistence
+            Write-Information "Stopping Windows Service persistent trace..." -InformationAction Continue
+
+            $serviceRunnerScript = Join-Path $moduleDir "NetTrace-ServiceRunner.ps1"
+            if (Test-Path $serviceRunnerScript) {
+                & powershell.exe -ExecutionPolicy Bypass -File $serviceRunnerScript -Stop | Out-Null
+                $exitCode = $LASTEXITCODE
+
+                if ($exitCode -eq 0) {
+                    Write-Information "Windows Service persistent trace stopped." -InformationAction Continue
+                    $finalStatus = Get-WindowsServiceStatus
+                    return @{
+                        Success = $true
+                        FilesCreated = $finalStatus.FilesCreated
+                        FilesRolled = $finalStatus.FilesRolled
+                        Persistence = $true
+                        Mode = "WindowsService"
+                    }
+                } else {
+                    return @{
+                        Success = $false
+                        Error = "Failed to stop Windows Service persistence. Exit code: $exitCode"
+                        Mode = "WindowsService"
+                    }
                 }
             } else {
                 return @{
                     Success = $false
-                    Error = "Failed to stop service-based persistence"
-                    Mode = "Service"
+                    Error = "NetTrace-ServiceRunner.ps1 not found"
+                    Mode = "WindowsService"
                 }
             }
         }
@@ -840,31 +911,35 @@ function Get-NetTraceStatus {
             LoggingEnabled = $false
         }
 
-        # Check service-based persistence first
+        # Check Windows Service persistence first
         $serviceRunning = $false
         try {
             $moduleDir = $PSScriptRoot
             if (-not $moduleDir) {
                 $moduleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
             }
-            
-            $serviceScript = Join-Path $moduleDir "NetTrace-Service.ps1"
-            if (Test-Path $serviceScript) {
-                . $serviceScript
-                $serviceStatus = Get-ServiceStatus
-                $serviceConfig = Get-ServiceConfig
-                
-                if ($serviceStatus.IsRunning) {
-                    $serviceRunning = $true
-                    $status.IsRunning = $true
-                    $status.FilesCreated = $serviceStatus.FilesCreated
-                    $status.FilesRolled = $serviceStatus.FilesRolled
-                    $status.CurrentFile = $serviceStatus.CurrentFile
-                    $status.LastUpdate = $serviceStatus.LastUpdate
-                    $status.ErrorMessage = $serviceStatus.ErrorMessage
-                    $status.Mode = "Service"
-                    $status.Persistence = $true
-                    
+
+            # Check if Windows Service is running
+            $windowsService = Get-Service -Name "NetTraceService" -ErrorAction SilentlyContinue
+            if ($windowsService -and $windowsService.Status -eq 'Running') {
+                $serviceRunning = $true
+                $status.IsRunning = $true
+                $status.Mode = "WindowsService"
+                $status.Persistence = $true
+
+                # Get detailed status from Windows Service
+                $serviceStatus = Get-WindowsServiceStatus
+                $status.FilesCreated = $serviceStatus.FilesCreated
+                $status.FilesRolled = $serviceStatus.FilesRolled
+                $status.CurrentFile = $serviceStatus.CurrentFile
+                $status.LastUpdate = $serviceStatus.LastUpdate
+                $status.ErrorMessage = $serviceStatus.ErrorMessage
+
+                # Get configuration from Windows Service
+                $serviceScript = Join-Path $moduleDir "NetTrace-Service.ps1"
+                if (Test-Path $serviceScript) {
+                    . $serviceScript
+                    $serviceConfig = Get-ServiceConfig
                     if ($serviceConfig) {
                         $status.Path = $serviceConfig.Path
                         $status.MaxFiles = $serviceConfig.MaxFiles
@@ -874,7 +949,7 @@ function Get-NetTraceStatus {
                 }
             }
         } catch {
-            # Service script not available or error checking status
+            # Service not available or error checking status
             $serviceRunning = $false
         }
 
@@ -888,7 +963,7 @@ function Get-NetTraceStatus {
                 $status.MaxSizeMB = $script:MaxSizeMB
                 $status.Persistence = $script:PersistenceEnabled
                 $status.LoggingEnabled = $null -ne $script:CurrentLogFile
-                
+
                 # Get current counts from counter file
                 $currentCounts = Get-CurrentCount
                 $status.FilesCreated = $currentCounts.FilesCreated

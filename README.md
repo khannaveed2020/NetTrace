@@ -13,6 +13,20 @@ A professional PowerShell module for Windows network tracing using the native `n
 - **Optional Technical Logging**: Save netsh technical details when needed
 - **Real-time Monitoring**: Optional log file monitoring with `Get-Content -Wait`
 
+## Version 1.2.2 - Critical Fix
+
+⚠️ **IMPORTANT UPDATE**: Version 1.2.2 contains a critical fix for the persistence feature. Previous version 1.2.1 used PowerShell jobs for "service-based persistence" which incorrectly terminated when users logged off, breaking the persistence promise. 
+
+Version 1.2.2 now implements **true Windows Service persistence** using NSSM (Non-Sucking Service Manager) that provides:
+
+- ✅ **Genuine Windows Service** - runs in SYSTEM context
+- ✅ **Survives user logouts** - continues monitoring when all users log off
+- ✅ **Survives system reboots** - auto-starts after system restart
+- ✅ **Automatic service management** - downloads and configures NSSM automatically
+- ✅ **No breaking changes** - all existing commands work identically
+
+All existing commands work exactly the same - this is a critical infrastructure fix with no user-facing changes.
+
 ## Requirements
 
 - **Windows 10/11** with netsh utility
@@ -122,10 +136,11 @@ NetTrace -Stop
 The `-Persistence` parameter enables **true persistent network traces** that survive user session termination and system reboots using a Windows Service-based architecture. This advanced feature provides enterprise-grade persistence beyond what netsh trace's `persistent=yes` parameter alone can offer.
 
 ### How It Works
-- **Service-Based Architecture**: Uses Windows Services for true session-independent operation
-- **Automatic Monitoring**: File rotation and circular management continue regardless of user sessions
-- **System Reboot Survival**: Capture automatically resumes after system reboot
-- **Complete Independence**: No dependency on PowerShell sessions or user logins
+- **True Windows Service**: Uses NSSM (Non-Sucking Service Manager) for genuine Windows Service implementation
+- **Complete Session Independence**: Runs in SYSTEM context, completely independent of user sessions
+- **Automatic Service Management**: Downloads and configures NSSM automatically when needed
+- **Persistent File Management**: File rotation and circular management continue regardless of user sessions
+- **System Reboot Survival**: Service auto-starts after system reboot with full configuration
 - **Native Integration**: Still uses netsh trace's `persistent=yes` parameter for optimal performance
 
 ### True Persistence vs Basic Persistence
@@ -160,6 +175,24 @@ Get-NetTraceStatus
 NetTrace -Stop
 ```
 
+### Service Requirements
+The Windows Service persistence feature has the following requirements:
+
+- **NSSM**: Downloaded automatically from https://nssm.cc/ when needed
+- **Administrator privileges**: Required for service installation and management
+- **Windows Service Manager**: Uses standard Windows Service controls
+- **Automatic installation**: Service is installed automatically when persistence is first requested
+
+### Service Installation Details
+When you first use `-Persistence true`, the module will:
+
+1. **Download NSSM** from the official source (https://nssm.cc/)
+2. **Install NetTrace Windows Service** using NSSM
+3. **Configure service settings** for automatic startup and recovery
+4. **Start the service** with your specified parameters
+
+No manual service installation is required - everything is handled automatically.
+
 ### Recommendations
 - **File Size**: Use `-FileSize >= 10MB` for optimal performance with persistence
 - **Monitoring**: Combine with `-Log` parameter for comprehensive tracking
@@ -173,15 +206,15 @@ NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true -Log
 ```
 **Output:**
 ```
-Starting service-based persistent network trace...
+Starting Windows Service persistent network trace...
 Path: C:\Traces
 Max Files: 3
 Max Size: 10 MB
-Service-based persistence: Enabled (capture will survive user session termination)
-Service-based persistent trace started successfully.
-All output is being logged to: C:\Traces\NetTrace_2025-07-08_144228.log
+True Windows Service persistence: Enabled (capture will survive user session termination and system reboots)
+Windows Service persistent trace started successfully.
+All output is being logged to: C:\Traces\NetTrace_2025-01-08_144228.log
 You can monitor progress with: Get-Content 'C:\Traces\NetTrace_*.log' -Wait
-Use 'NetTrace -Stop' to stop the service-based trace.
+Use 'NetTrace -Stop' to stop the Windows Service trace.
 ```
 
 ### Status Monitoring
@@ -195,13 +228,13 @@ Get-NetTraceStatus
 IsRunning     : True
 FilesCreated  : 2
 FilesRolled   : 1
-Mode          : Service
+Mode          : WindowsService
 Path          : C:\Traces
 MaxFiles      : 3
 MaxSizeMB     : 10
 Persistence   : True
 LoggingEnabled: True
-LastUpdate    : 2025-07-08 14:45:30
+LastUpdate    : 2025-01-08 14:45:30
 ```
 
 ## Examples
