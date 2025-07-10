@@ -553,52 +553,65 @@ function Start-NetTraceServicePersistence {
                 Write-Information "True Windows Service persistence: Enabled (capture will survive user session termination and system reboots)" -InformationAction Continue
             }
 
-            # Use the service runner to start the Windows Service
-            $arguments = @(
-                "-Start"
-                "-Path", "`"$Path`""
-                "-MaxFiles", $MaxFiles
-                "-MaxSizeMB", $MaxSizeMB
-            )
+            # Import service runner functions for proper Windows Service management
+            . $serviceRunnerScript
 
-            if ($LogOutput) {
-                $arguments += "-LogOutput"
+            # Check if service is installed, install if needed
+            $service = Get-Service -Name "NetTraceService" -ErrorAction SilentlyContinue
+            if (-not $service) {
+                Write-Information "NetTrace Windows Service is not installed. Installing automatically..." -InformationAction Continue
+                $installSuccess = Install-NetTraceWindowsService
+                if (-not $installSuccess) {
+                    throw "Failed to install NetTrace Windows Service"
+                }
             }
 
+            # Check if service is already running
+            $service = Get-Service -Name "NetTraceService" -ErrorAction SilentlyContinue
+            if ($service -and $service.Status -eq 'Running') {
+                Write-Warning "NetTrace Windows Service is already running. Use 'NetTrace -Stop' first to stop the current session."
+                throw "Service is already running"
+            }
+
+            # Configure the service
+            $configSuccess = Start-NetTraceService -Path $Path -MaxFiles $MaxFiles -MaxSizeMB $MaxSizeMB -LogOutput $LogOutput -EnableLogging $EnableLogging
+            if (-not $configSuccess) {
+                throw "Failed to configure NetTrace service"
+            }
+
+            # Start the Windows Service
+            $startSuccess = Start-WindowsService
+            if (-not $startSuccess) {
+                throw "Failed to start NetTrace Windows Service"
+            }
+
+            Write-Information "Windows Service persistent trace started successfully." -InformationAction Continue
+            Write-Information "  Path: $Path" -InformationAction Continue
+            Write-Information "  Max Files: $MaxFiles" -InformationAction Continue
+            Write-Information "  Max Size: $MaxSizeMB MB" -InformationAction Continue
+            Write-Information "  True Windows Service persistence: Enabled (capture will survive user session termination and system reboots)" -InformationAction Continue
+            
             if ($EnableLogging) {
-                $arguments += "-EnableLogging"
-            }
-
-            # Start the Windows Service using the service runner
-            & powershell.exe -ExecutionPolicy Bypass -File $serviceRunnerScript @arguments | Out-Null
-            $exitCode = $LASTEXITCODE
-
-            if ($exitCode -eq 0) {
-                Write-Information "Windows Service persistent trace started successfully." -InformationAction Continue
-                if ($EnableLogging) {
-                    $logFile = Join-Path $Path "NetTrace_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').log"
-                    Write-Information "All output is being logged to: $logFile" -InformationAction Continue
-                    Write-Information "You can monitor progress with: Get-Content '$Path\NetTrace_*.log' -Wait" -InformationAction Continue
-                } else {
-                    Write-Information "Logging is disabled. Use -Log parameter to enable detailed logging." -InformationAction Continue
-                }
-                Write-Information "Use 'NetTrace -Stop' to stop the Windows Service trace or 'Get-NetTraceStatus' to check status." -InformationAction Continue
-
-                # Wait a moment for Windows Service to initialize
-                Start-Sleep -Seconds 5
-
-                # Get current status from Windows Service
-                $serviceStatus = Get-WindowsServiceStatus
-
-                return @{
-                    FilesCreated = $serviceStatus.FilesCreated
-                    FilesRolled = $serviceStatus.FilesRolled
-                    Success = $true
-                    Persistence = $true
-                    Mode = "WindowsService"
-                }
+                $logFile = Join-Path $Path "NetTrace_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').log"
+                Write-Information "All output is being logged to: $logFile" -InformationAction Continue
+                Write-Information "You can monitor progress with: Get-Content '$Path\NetTrace_*.log' -Wait" -InformationAction Continue
             } else {
-                throw "Failed to start Windows Service persistence. Exit code: $exitCode"
+                Write-Information "Logging is disabled. Use -Log parameter to enable detailed logging." -InformationAction Continue
+            }
+            Write-Information "Use 'NetTrace -Stop' to stop the Windows Service trace or 'Get-NetTraceStatus' to check status." -InformationAction Continue
+
+            # Wait a moment for Windows Service to initialize
+            Start-Sleep -Seconds 5
+
+            # Get current status from Windows Service
+            $serviceStatus = Get-WindowsServiceStatus
+
+            return @{
+                FilesCreated = $serviceStatus.FilesCreated
+                FilesRolled = $serviceStatus.FilesRolled
+                Success = $true
+                Persistence = $true
+                Mode = "WindowsService"
             }
         }
     }
@@ -715,10 +728,13 @@ function Stop-NetTraceCapture {
 
             $serviceRunnerScript = Join-Path $moduleDir "NetTrace-ServiceRunner.ps1"
             if (Test-Path $serviceRunnerScript) {
-                & powershell.exe -ExecutionPolicy Bypass -File $serviceRunnerScript -Stop | Out-Null
-                $exitCode = $LASTEXITCODE
+                # Import service runner functions for proper Windows Service management
+                . $serviceRunnerScript
 
-                if ($exitCode -eq 0) {
+                # Stop the Windows Service properly
+                $stopSuccess = Stop-WindowsService
+                
+                if ($stopSuccess) {
                     Write-Information "Windows Service persistent trace stopped." -InformationAction Continue
                     $finalStatus = Get-WindowsServiceStatus
                     return @{
@@ -731,7 +747,7 @@ function Stop-NetTraceCapture {
                 } else {
                     return @{
                         Success = $false
-                        Error = "Failed to stop Windows Service persistence. Exit code: $exitCode"
+                        Error = "Failed to stop Windows Service persistence"
                         Mode = "WindowsService"
                     }
                 }
