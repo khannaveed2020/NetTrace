@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.2.2'
+    ModuleVersion = '1.2.3'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -93,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.2.2: CRITICAL FIX - Implemented true Windows Service persistence using NSSM. Previous v1.2.1 used PowerShell jobs which terminated on user logout, breaking persistence promise. Now uses genuine Windows Services that survive user session termination and system reboots. Updated service architecture to use NSSM for proper service management. All existing commands work identically - no breaking changes. v1.2.1: Implemented service-based persistence architecture. v1.2.0: Added persistence feature using native netsh trace persistent=yes parameter. v1.1.1: Removed #Requires -RunAsAdministrator directive to allow module loading in non-admin sessions. v1.1.0: Added optional logging functionality, fixed file counter accuracy, improved stop command reliability.'
+            ReleaseNotes = 'v1.2.3: CRITICAL FIX - Fixed PowerShell Gallery package to include missing service script files (NetTrace-Service.ps1 and NetTrace-ServiceRunner.ps1). Previous v1.2.2 package was incomplete, causing persistence functionality to fail. All persistence features now work correctly. v1.2.2: CRITICAL FIX - Implemented true Windows Service persistence using NSSM. Previous v1.2.1 used PowerShell jobs which terminated on user logout, breaking persistence promise. Now uses genuine Windows Services that survive user session termination and system reboots. Updated service architecture to use NSSM for proper service management. All existing commands work identically - no breaking changes. v1.2.1: Implemented service-based persistence architecture. v1.2.0: Added persistence feature using native netsh trace persistent=yes parameter. v1.1.1: Removed #Requires -RunAsAdministrator directive to allow module loading in non-admin sessions. v1.1.0: Added optional logging functionality, fixed file counter accuracy, improved stop command reliability.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()
