@@ -241,6 +241,10 @@ function Install-NetTraceWindowsService {
             & $nssm set $ServiceName Start SERVICE_AUTO_START
             & $nssm set $ServiceName Type SERVICE_WIN32_OWN_PROCESS
 
+            # Ensure the service runs as LocalSystem for persistence
+            & $nssm set $ServiceName ObjectName "LocalSystem"
+            Write-Information "Service will run as LocalSystem for persistence across logoff/reboot." -InformationAction Continue
+
             # Configure service recovery
             & $nssm set $ServiceName AppStopMethodSkip 0
             & $nssm set $ServiceName AppStopMethodConsole 1500

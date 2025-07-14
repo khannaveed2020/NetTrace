@@ -13,19 +13,17 @@ A professional PowerShell module for Windows network tracing using the native `n
 - **Optional Technical Logging**: Save netsh technical details when needed
 - **Real-time Monitoring**: Optional log file monitoring with `Get-Content -Wait`
 
-## Version 1.2.2 - Critical Fix
+## Version 1.2.3 - Service Persistence Enhancement
 
-⚠️ **IMPORTANT UPDATE**: Version 1.2.2 contains a critical fix for the persistence feature. Previous version 1.2.1 used PowerShell jobs for "service-based persistence" which incorrectly terminated when users logged off, breaking the persistence promise. 
+⚠️ **IMPORTANT UPDATE**: Version 1.2.3 enforces that the NetTrace Windows Service is always installed to run as the LocalSystem account for true persistence. This ensures the service will survive user logoff and system reboots, regardless of which user installs it. Previous versions could be affected if the service was inadvertently installed under a user account.
 
-Version 1.2.2 now implements **true Windows Service persistence** using NSSM (Non-Sucking Service Manager) that provides:
-
-- ✅ **Genuine Windows Service** - runs in SYSTEM context
+- ✅ **Genuine Windows Service** - always runs as LocalSystem (SYSTEM context)
 - ✅ **Survives user logouts** - continues monitoring when all users log off
 - ✅ **Survives system reboots** - auto-starts after system restart
 - ✅ **Automatic service management** - downloads and configures NSSM automatically
 - ✅ **No breaking changes** - all existing commands work identically
 
-All existing commands work exactly the same - this is a critical infrastructure fix with no user-facing changes.
+All existing commands work exactly the same - this is a critical infrastructure fix with no user-facing changes. See 'Persistence' below for more details.
 
 ## Requirements
 
@@ -137,6 +135,7 @@ The `-Persistence` parameter enables **true persistent network traces** that sur
 
 ### How It Works
 - **True Windows Service**: Uses NSSM (Non-Sucking Service Manager) for genuine Windows Service implementation
+- **Always runs as LocalSystem**: The NetTrace service is installed to run as the LocalSystem (SYSTEM) account, guaranteeing persistence across logoff and reboot, regardless of which user installs it.
 - **Complete Session Independence**: Runs in SYSTEM context, completely independent of user sessions
 - **Automatic Service Management**: Downloads and configures NSSM automatically when needed
 - **Persistent File Management**: File rotation and circular management continue regardless of user sessions
