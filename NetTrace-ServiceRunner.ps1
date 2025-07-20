@@ -41,7 +41,7 @@
 
 .NOTES
     File Name      : NetTrace-ServiceRunner.ps1
-    Version        : 1.2.7
+    Version        : 1.2.8
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
@@ -234,7 +234,7 @@ function Install-NetTraceWindowsService {
             }
 
             # Configure service parameters
-            & $nssm set $ServiceName Parameters "-ExecutionPolicy Bypass -File `"$serviceScript`" -ServiceMode"
+            & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File `"$serviceScript`" -ServiceMode"
             & $nssm set $ServiceName AppDirectory "$ScriptDir"
             & $nssm set $ServiceName DisplayName "$ServiceDisplayName"
             & $nssm set $ServiceName Description "$ServiceDescription"
@@ -643,7 +643,7 @@ function Show-NetTraceServiceStatus {
 
 # Main execution logic
 try {
-    Write-Information "NetTrace Service Runner v1.2.7" -InformationAction Continue
+    Write-Information "NetTrace Service Runner v1.2.8" -InformationAction Continue
     Write-Information "True Windows Service Implementation" -InformationAction Continue
     Write-Information "===============================" -InformationAction Continue
     Write-Information "" -InformationAction Continue
