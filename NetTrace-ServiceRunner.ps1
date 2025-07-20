@@ -267,17 +267,38 @@ function Install-NetTraceWindowsService {
             $currentParams = & $nssm get $ServiceName AppParameters
             Write-Information "Service configured with parameters: $currentParams" -InformationAction Continue
             
-            # Verify the service script path exists - extract path from quoted string
+            # Verify the service script path exists - improved path parsing
+            # NSSM may return parameters differently, so try multiple parsing methods
+            $configuredPath = $null
+            
+            # Method 1: Try standard quoted path parsing
             if ($currentParams -match '-File\s+"([^"]+)"') {
                 $configuredPath = $matches[1]
+            }
+            # Method 2: Try parsing without quotes (in case NSSM strips them)
+            elseif ($currentParams -match '-File\s+([^\s]+)') {
+                $configuredPath = $matches[1]
+            }
+            # Method 3: Try parsing with different quote styles
+            elseif ($currentParams -match "-File\s+'([^']+)'") {
+                $configuredPath = $matches[1]
+            }
+            
+            if ($configuredPath) {
                 if (-not (Test-Path $configuredPath)) {
                     Write-Warning "Configured service path does not exist: $configuredPath"
                     Write-Warning "Expected path should be: $serviceScriptPath"
+                    # Try to fix the configuration if the expected path exists
+                    if (Test-Path $serviceScriptPath) {
+                        Write-Information "Attempting to fix service configuration..." -InformationAction Continue
+                        & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File `"$serviceScriptPath`" -ServiceMode"
+                    }
                 } else {
                     Write-Information "Service path verified: $configuredPath" -InformationAction Continue
                 }
             } else {
                 Write-Warning "Could not parse service configuration parameters: $currentParams"
+                Write-Warning "Raw parameters received from NSSM: '$currentParams'"
             }
             & $nssm set $ServiceName DisplayName "$ServiceDisplayName"
             & $nssm set $ServiceName Description "$ServiceDescription"
@@ -413,24 +434,61 @@ function Start-WindowsService {
 
             # Start service
             if ($nssm) {
+                Write-Information "Starting service with NSSM..." -InformationAction Continue
                 $startResult = & $nssm start $ServiceName 2>&1
                 if ($LASTEXITCODE -ne 0) {
                     throw "NSSM start failed: $startResult"
                 }
             } else {
+                Write-Information "Starting service with standard Windows service controls..." -InformationAction Continue
                 Start-Service -Name $ServiceName -ErrorAction Stop
             }
 
-            # Wait for service to start
-            Start-Sleep -Seconds 3
-
-            # Verify service is running
+            # Wait for service to start and check multiple times
+            $maxWaitTime = 15
+            $checkInterval = 2
+            $elapsed = 0
+            
+            Write-Information "Waiting for service to start..." -InformationAction Continue
+            
+            while ($elapsed -lt $maxWaitTime) {
+                Start-Sleep -Seconds $checkInterval
+                $elapsed += $checkInterval
+                
+                $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+                if ($service) {
+                    Write-Information "Service status after $elapsed seconds: $($service.Status)" -InformationAction Continue
+                    
+                    if ($service.Status -eq 'Running') {
+                        Write-Information "NetTrace Windows Service started successfully" -InformationAction Continue
+                        return $true
+                    }
+                    elseif ($service.Status -eq 'Paused') {
+                        # Service is paused - this usually indicates a script execution issue
+                        Write-Warning "Service is in PAUSED state - this typically indicates a PowerShell script execution issue"
+                        Write-Warning "Check Windows Event Logs for more details"
+                        
+                        # Try to get more details from NSSM
+                        if ($nssm) {
+                            $nssmStatus = & $nssm status $ServiceName 2>&1
+                            Write-Information "NSSM status: $nssmStatus" -InformationAction Continue
+                        }
+                        
+                        throw "Service started but is in PAUSED state. This usually indicates the PowerShell script failed to execute properly."
+                    }
+                    elseif ($service.Status -eq 'Stopped') {
+                        Write-Warning "Service stopped unexpectedly"
+                        throw "Service stopped after starting - check Windows Event Logs for errors"
+                    }
+                }
+            }
+            
+            # Final check
             $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
-            if ($service -and $service.Status -eq 'Running') {
-                Write-Information "NetTrace Windows Service started successfully" -InformationAction Continue
-                return $true
+            if ($service) {
+                throw "Service failed to start within $maxWaitTime seconds. Final status: $($service.Status)"
             } else {
-                throw "Service failed to start properly"
+                throw "Service not found after start attempt"
             }
 
         } catch {
