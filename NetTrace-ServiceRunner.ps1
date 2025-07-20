@@ -237,7 +237,10 @@ function Install-NetTraceWindowsService {
             $shortPath = (Get-Item $serviceScript).FullName
             $realShortPath = cmd /c "for %i in (`"$shortPath`") do @echo %~si"
             $realShortPath = $realShortPath.Trim()
+            
+            # Force update the parameters to ensure correct version path
             & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File `"$realShortPath`" -ServiceMode"
+            & $nssm set $ServiceName AppDirectory "$ScriptDir"
             & $nssm set $ServiceName AppDirectory "$ScriptDir"
             & $nssm set $ServiceName DisplayName "$ServiceDisplayName"
             & $nssm set $ServiceName Description "$ServiceDescription"
