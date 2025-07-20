@@ -129,15 +129,23 @@ if (!(Test-Path $ServiceScript)) {
 function Get-NSSM {
     <#
     .SYNOPSIS
-        Downloads and prepares NSSM for service management
+        Gets NSSM for service management - checks system path first, downloads if needed
     .DESCRIPTION
-        Downloads NSSM (Non-Sucking Service Manager) from official source if not available locally
+        Checks if NSSM is available in system PATH first, then downloads if not found
     #>
 
+    # First check if NSSM is available in system PATH (user may have installed it)
+    $systemNssm = Get-Command nssm -ErrorAction SilentlyContinue
+    if ($systemNssm) {
+        Write-Information "NSSM found in system PATH: $($systemNssm.Source)" -InformationAction Continue
+        return $systemNssm.Source
+    }
+
+    # Check local temp directory
     $nssmDir = "$env:TEMP\NetTrace-NSSM"
     $nssmPath = "$nssmDir\nssm.exe"
 
-    # Check if NSSM is already available
+    # Check if NSSM is already available in temp
     if (Test-Path $nssmPath) {
         Write-Information "NSSM found at: $nssmPath" -InformationAction Continue
         return $nssmPath
@@ -248,18 +256,26 @@ function Install-NetTraceWindowsService {
                 throw "NSSM install failed: $installResult"
             }
 
-            # Configure service parameters - use 8.3 short path to avoid space issues
-            $shortPath = (Get-Item $serviceScript).FullName
-            $realShortPath = cmd /c "for %i in (`"$shortPath`") do @echo %~si"
-            $realShortPath = $realShortPath.Trim()
-
-            # Force update the parameters to ensure correct version path
-            & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File `"$realShortPath`" -ServiceMode"
+            # Configure service parameters - use NetTrace-Service.ps1 directly with ServiceMode
+            $serviceScriptPath = (Get-Item $ServiceScript).FullName
+            
+            # Configure service to run NetTrace-Service.ps1 directly with -ServiceMode
+            & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File `"$serviceScriptPath`" -ServiceMode"
             & $nssm set $ServiceName AppDirectory "$ScriptDir"
 
             # Verify the configuration was set correctly
             $currentParams = & $nssm get $ServiceName AppParameters
             Write-Information "Service configured with parameters: $currentParams" -InformationAction Continue
+            
+            # Verify the service script path exists
+            $paramArray = $currentParams -split ' '
+            $configuredPath = $paramArray[3]
+            if (-not (Test-Path $configuredPath)) {
+                Write-Warning "Configured service path does not exist: $configuredPath"
+                Write-Warning "Expected path should be: $serviceScriptPath"
+            } else {
+                Write-Information "Service path verified: $configuredPath" -InformationAction Continue
+            }
             & $nssm set $ServiceName DisplayName "$ServiceDisplayName"
             & $nssm set $ServiceName Description "$ServiceDescription"
             & $nssm set $ServiceName Start SERVICE_AUTO_START
