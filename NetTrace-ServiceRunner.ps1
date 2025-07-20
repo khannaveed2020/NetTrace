@@ -267,14 +267,17 @@ function Install-NetTraceWindowsService {
             $currentParams = & $nssm get $ServiceName AppParameters
             Write-Information "Service configured with parameters: $currentParams" -InformationAction Continue
             
-            # Verify the service script path exists
-            $paramArray = $currentParams -split ' '
-            $configuredPath = $paramArray[3]
-            if (-not (Test-Path $configuredPath)) {
-                Write-Warning "Configured service path does not exist: $configuredPath"
-                Write-Warning "Expected path should be: $serviceScriptPath"
+            # Verify the service script path exists - extract path from quoted string
+            if ($currentParams -match '-File\s+"([^"]+)"') {
+                $configuredPath = $matches[1]
+                if (-not (Test-Path $configuredPath)) {
+                    Write-Warning "Configured service path does not exist: $configuredPath"
+                    Write-Warning "Expected path should be: $serviceScriptPath"
+                } else {
+                    Write-Information "Service path verified: $configuredPath" -InformationAction Continue
+                }
             } else {
-                Write-Information "Service path verified: $configuredPath" -InformationAction Continue
+                Write-Warning "Could not parse service configuration parameters: $currentParams"
             }
             & $nssm set $ServiceName DisplayName "$ServiceDisplayName"
             & $nssm set $ServiceName Description "$ServiceDescription"
