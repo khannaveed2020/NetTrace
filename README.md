@@ -13,9 +13,9 @@ A professional PowerShell module for Windows network tracing using the native `n
 - **Optional Technical Logging**: Save netsh technical details when needed
 - **Real-time Monitoring**: Optional log file monitoring with `Get-Content -Wait`
 
-## Version 1.2.3 - Service Persistence Enhancement
+## Version 1.2.6 - Service Persistence Enhancement
 
-⚠️ **IMPORTANT UPDATE**: Version 1.2.3 enforces that the NetTrace Windows Service is always installed to run as the LocalSystem account for true persistence. This ensures the service will survive user logoff and system reboots, regardless of which user installs it. Previous versions could be affected if the service was inadvertently installed under a user account.
+⚠️ **IMPORTANT UPDATE**: Version 1.2.6 enforces that the NetTrace Windows Service is always installed to run as the LocalSystem account for true persistence. This ensures the service will survive user logoff and system reboots, regardless of which user installs it. Previous versions could be affected if the service was inadvertently installed under a user account.
 
 - ✅ **Genuine Windows Service** - always runs as LocalSystem (SYSTEM context)
 - ✅ **Survives user logouts** - continues monitoring when all users log off
@@ -490,7 +490,7 @@ This module is provided as-is for educational and administrative purposes.
 
 ## Version History
 
-- **v1.2.1**: Implemented true persistence using Windows Services
+- **v1.2.6**: Implemented true persistence using Windows Services
   - **True Persistence**: Service-based architecture for captures that survive user session termination and system reboots
   - **Enhanced -Persistence Parameter**: Now uses Windows Services for true session-independent operation
   - **New Command**: Added `Get-NetTraceStatus` for quick status checking without requiring -Log parameter
@@ -498,13 +498,13 @@ This module is provided as-is for educational and administrative purposes.
   - **Dual-Mode Operation**: Automatic detection between job-based and service-based persistence
   - **Backward Compatibility**: Existing functionality unchanged, enhanced persistence is opt-in
   - **Unified Stop Command**: Single `NetTrace -Stop` command works for both job-based and service-based traces
-- **v1.2.0**: Added basic persistence feature for long-running captures
+- **v1.2.5**: Added basic persistence feature for long-running captures
   - Added `-Persistence` parameter for captures that survive system reboot
   - Integrated native netsh trace `persistent=yes` parameter
   - Enhanced logging to include persistence status and configuration
   - Updated documentation with comprehensive persistence feature guide
   - Added persistence examples and usage recommendations
-- **v1.1.1**: Improved user experience and admin privilege handling
+- **v1.2.4**: Improved user experience and admin privilege handling
   - Removed `#Requires -RunAsAdministrator` directive to allow module loading in non-admin sessions
   - Module now provides proper error message when run without admin privileges
   - Updated README with PowerShell Gallery installation instructions
