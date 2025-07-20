@@ -216,11 +216,26 @@ function Install-NetTraceWindowsService {
                 throw "NSSM is required for service installation"
             }
 
-            # Check if service already exists
+            # Check if service already exists - force reconfiguration if it does
             $existingService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
             if ($existingService) {
-                Write-Warning "Service '$ServiceName' already exists. Use -Uninstall first to remove it."
-                return $false
+                Write-Information "Service '$ServiceName' already exists. Forcing reconfiguration with current module version..." -InformationAction Continue
+
+                # Stop and remove the existing service to ensure clean reinstall
+                if ($existingService.Status -eq 'Running') {
+                    & $nssm stop $ServiceName 2>&1 | Out-Null
+                    Start-Sleep -Seconds 2
+                }
+
+                # Remove the service completely
+                & $nssm remove $ServiceName confirm 2>&1 | Out-Null
+                Start-Sleep -Seconds 2
+
+                # Clean up service state
+                $ServiceStateDir = "$env:ProgramData\NetTrace"
+                if (Test-Path $ServiceStateDir) {
+                    Remove-Item $ServiceStateDir -Recurse -Force -ErrorAction SilentlyContinue
+                }
             }
 
             # Install service with NSSM
@@ -237,11 +252,14 @@ function Install-NetTraceWindowsService {
             $shortPath = (Get-Item $serviceScript).FullName
             $realShortPath = cmd /c "for %i in (`"$shortPath`") do @echo %~si"
             $realShortPath = $realShortPath.Trim()
-            
+
             # Force update the parameters to ensure correct version path
             & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File `"$realShortPath`" -ServiceMode"
             & $nssm set $ServiceName AppDirectory "$ScriptDir"
-            & $nssm set $ServiceName AppDirectory "$ScriptDir"
+
+            # Verify the configuration was set correctly
+            $currentParams = & $nssm get $ServiceName AppParameters
+            Write-Information "Service configured with parameters: $currentParams" -InformationAction Continue
             & $nssm set $ServiceName DisplayName "$ServiceDisplayName"
             & $nssm set $ServiceName Description "$ServiceDescription"
             & $nssm set $ServiceName Start SERVICE_AUTO_START
