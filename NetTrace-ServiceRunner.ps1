@@ -233,8 +233,11 @@ function Install-NetTraceWindowsService {
                 throw "NSSM install failed: $installResult"
             }
 
-            # Configure service parameters
-            & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File `"$serviceScript`" -ServiceMode"
+            # Configure service parameters - use 8.3 short path to avoid space issues
+            $shortPath = (Get-Item $serviceScript).FullName
+            $realShortPath = cmd /c "for %i in (`"$shortPath`") do @echo %~si"
+            $realShortPath = $realShortPath.Trim()
+            & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File `"$realShortPath`" -ServiceMode"
             & $nssm set $ServiceName AppDirectory "$ScriptDir"
             & $nssm set $ServiceName DisplayName "$ServiceDisplayName"
             & $nssm set $ServiceName Description "$ServiceDescription"
