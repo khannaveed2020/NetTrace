@@ -226,6 +226,7 @@ function NetTrace {
 function Start-NetTraceCapture {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([System.Collections.Hashtable])]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'LogOutput', Justification='Parameter is used in background job script block')]
     param(
         [Parameter(Mandatory)]
         [string]$Path,
@@ -237,7 +238,7 @@ function Start-NetTraceCapture {
         [int]$MaxSizeMB,
 
         [Parameter()]
-        [bool]$LogOutput = $false,
+        [bool]$LogOutput = $false, # Used in background job script block
 
         [Parameter()]
         [bool]$EnableLogging = $false,

@@ -32,10 +32,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [switch]$ServiceMode,
-
-    [Parameter(Mandatory=$false)]
-    [string]$ConfigFile
+    [switch]$ServiceMode
 )
 
 # Service configuration

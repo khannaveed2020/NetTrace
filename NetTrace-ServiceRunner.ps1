@@ -88,8 +88,7 @@ param(
     [Parameter(ParameterSetName = 'Stop', Mandatory = $true)]
     [switch]$Stop,
 
-    [Parameter(ParameterSetName = 'Status', Mandatory = $false)]
-    [switch]$Status,
+
 
     [Parameter(ParameterSetName = 'Start', Mandatory = $true)]
     [string]$Path,
@@ -260,7 +259,24 @@ function Install-NetTraceWindowsService {
             $serviceScriptPath = (Get-Item $ServiceScript).FullName
             
             # Configure service to run NetTrace-Service.ps1 directly with -ServiceMode
-            & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File `"$serviceScriptPath`" -ServiceMode"
+            # Try multiple parameter setting approaches for NSSM
+            Write-Information "Setting NSSM parameters..." -InformationAction Continue
+            
+            # Method 1: Try with proper NSSM escaping
+            $paramResult1 = & $nssm set $ServiceName AppParameters "`"-ExecutionPolicy`" `"Bypass`" `"-File`" `"`"$serviceScriptPath`"`" `"-ServiceMode`"" 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Write-Information "Method 1 failed ($($paramResult1)), trying method 2..." -InformationAction Continue
+                # Method 2: Try with simpler escaping
+                $paramResult2 = & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File \`"$serviceScriptPath\`" -ServiceMode" 2>&1
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Information "Method 2 failed ($($paramResult2)), trying method 3..." -InformationAction Continue
+                    # Method 3: Try with double quotes around entire parameter string
+                    $paramResult3 = & $nssm set $ServiceName AppParameters "`"-ExecutionPolicy Bypass -File \`"$serviceScriptPath\`" -ServiceMode`"" 2>&1
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Warning "All NSSM parameter setting methods failed. Last error: $paramResult3"
+                    }
+                }
+            }
             & $nssm set $ServiceName AppDirectory "$ScriptDir"
 
             # Verify the configuration was set correctly
@@ -275,9 +291,9 @@ function Install-NetTraceWindowsService {
             if ($currentParams -match '-File\s+"([^"]+)"') {
                 $configuredPath = $matches[1]
             }
-            # Method 2: Try parsing without quotes (in case NSSM strips them)
-            elseif ($currentParams -match '-File\s+([^\s]+)') {
-                $configuredPath = $matches[1]
+            # Method 2: Try parsing without quotes (in case NSSM strips them) - handle spaces in path
+            elseif ($currentParams -match '-File\s+(.+\.ps1)(?:\s+-\w+|$)') {
+                $configuredPath = $matches[1].Trim()
             }
             # Method 3: Try parsing with different quote styles
             elseif ($currentParams -match "-File\s+'([^']+)'") {
@@ -291,7 +307,15 @@ function Install-NetTraceWindowsService {
                     # Try to fix the configuration if the expected path exists
                     if (Test-Path $serviceScriptPath) {
                         Write-Information "Attempting to fix service configuration..." -InformationAction Continue
-                        & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File `"$serviceScriptPath`" -ServiceMode"
+                        # Try the same multi-method approach for fixing
+                        $fixResult1 = & $nssm set $ServiceName AppParameters "`"-ExecutionPolicy`" `"Bypass`" `"-File`" `"`"$serviceScriptPath`"`" `"-ServiceMode`"" 2>&1
+                        if ($LASTEXITCODE -ne 0) {
+                            Write-Information "Fix method 1 failed ($($fixResult1)), trying method 2..." -InformationAction Continue
+                            $fixResult2 = & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File \`"$serviceScriptPath\`" -ServiceMode" 2>&1
+                            if ($LASTEXITCODE -ne 0) {
+                                Write-Warning "Service configuration fix failed. Error: $fixResult2"
+                            }
+                        }
                     }
                 } else {
                     Write-Information "Service path verified: $configuredPath" -InformationAction Continue
