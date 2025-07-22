@@ -483,6 +483,188 @@ Remove-Item "C:\ProgramData\NetTrace" -Recurse -Force -ErrorAction SilentlyConti
 NetTrace -File 3 -FileSize 10 -Path "C:\NetworkTraces" -Persistence $true -Log
 ```
 
+## Clean Slate - Complete Reset
+
+When troubleshooting or starting fresh, use this comprehensive clean slate procedure to remove all NetTrace components, services, and data:
+
+### **Complete NetTrace Reset Script**
+
+```powershell
+# ========================================
+# NetTrace Complete Clean Slate Procedure
+# ========================================
+
+Write-Host "=== NetTrace Clean Slate Reset ===" -ForegroundColor Cyan
+Write-Host "This will completely remove all NetTrace components" -ForegroundColor Yellow
+
+# Stop any running NetTrace services
+Write-Host "`n1. Stopping NetTrace services..." -ForegroundColor Green
+nssm stop NetTraceService 2>$null
+Stop-Service -Name NetTraceService -Force -ErrorAction SilentlyContinue
+
+# Remove NSSM service completely
+Write-Host "2. Removing NSSM service..." -ForegroundColor Green
+nssm remove NetTraceService confirm 2>$null
+
+# Alternative removal if NSSM fails
+Write-Host "3. Alternative service removal..." -ForegroundColor Green
+sc delete NetTraceService 2>$null
+
+# Remove all NetTrace service data and configuration
+Write-Host "4. Removing service data and configuration..." -ForegroundColor Green
+Remove-Item "C:\ProgramData\NetTrace" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Clean any existing trace files from previous tests
+Write-Host "5. Cleaning test directories..." -ForegroundColor Green
+Remove-Item "C:\NetTrace-Tests" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "C:\NetworkTraces" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Remove any temporary NSSM installations
+Write-Host "6. Removing temporary NSSM files..." -ForegroundColor Green
+Remove-Item "$env:TEMP\nssm*" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Uninstall all versions of NetTrace module
+Write-Host "7. Uninstalling NetTrace modules..." -ForegroundColor Green
+Get-Module NetTrace -ListAvailable | ForEach-Object { 
+    Write-Host "  Removing NetTrace version $($_.Version)" -ForegroundColor Yellow
+    Uninstall-Module -Name NetTrace -RequiredVersion $_.Version -Force -ErrorAction SilentlyContinue
+}
+
+# Force remove any remaining NetTrace modules
+Write-Host "8. Force removing remaining modules..." -ForegroundColor Green
+Uninstall-Module NetTrace -AllVersions -Force -ErrorAction SilentlyContinue
+
+# Remove imported NetTrace modules from current session
+Write-Host "9. Clearing session modules..." -ForegroundColor Green
+Remove-Module NetTrace -Force -ErrorAction SilentlyContinue
+
+# Clear PowerShell module cache
+Write-Host "10. Clearing module cache..." -ForegroundColor Green
+$env:PSModulePath -split ';' | ForEach-Object {
+    $netTracePath = Join-Path $_ "NetTrace"
+    if (Test-Path $netTracePath) {
+        Write-Host "  Removing cached NetTrace from: $netTracePath" -ForegroundColor Yellow
+        Remove-Item $netTracePath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# Verification
+Write-Host "`n=== Verification ===" -ForegroundColor Cyan
+
+# Verify no NetTrace services exist
+Write-Host "11. Checking for remaining services..." -ForegroundColor Green
+$services = Get-Service -Name "*NetTrace*" -ErrorAction SilentlyContinue
+if ($services) {
+    Write-Host "  WARNING: NetTrace services still exist:" -ForegroundColor Red
+    $services | Format-Table Name, Status, StartType
+} else {
+    Write-Host "  ✅ No NetTrace services found" -ForegroundColor Green
+}
+
+# Verify no NetTrace modules are loaded
+Write-Host "12. Checking for remaining modules..." -ForegroundColor Green
+$modules = Get-Module NetTrace -ListAvailable
+if ($modules) {
+    Write-Host "  WARNING: NetTrace modules still exist:" -ForegroundColor Red
+    $modules | Format-Table Name, Version, ModuleBase
+} else {
+    Write-Host "  ✅ No NetTrace modules found" -ForegroundColor Green
+}
+
+# Verify no configuration files exist
+Write-Host "13. Checking configuration directories..." -ForegroundColor Green
+if (Test-Path "C:\ProgramData\NetTrace") {
+    Write-Host "  WARNING: NetTrace configuration still exists" -ForegroundColor Red
+} else {
+    Write-Host "  ✅ No configuration files found" -ForegroundColor Green
+}
+
+# Verify no test directories exist
+Write-Host "14. Checking test directories..." -ForegroundColor Green
+$testDirs = @("C:\NetTrace-Tests", "C:\NetworkTraces")
+$remainingDirs = $testDirs | Where-Object { Test-Path $_ }
+if ($remainingDirs) {
+    Write-Host "  WARNING: Test directories still exist: $($remainingDirs -join ', ')" -ForegroundColor Red
+} else {
+    Write-Host "  ✅ No test directories found" -ForegroundColor Green
+}
+
+Write-Host "`n=== Clean Slate Complete ===" -ForegroundColor Cyan
+Write-Host "You can now perform a fresh NetTrace installation" -ForegroundColor Green
+```
+
+### **Quick Clean Slate (One-Liner)**
+
+For a fast reset without verbose output:
+
+```powershell
+# Quick clean slate - single command
+nssm stop NetTraceService 2>$null; nssm remove NetTraceService confirm 2>$null; sc delete NetTraceService 2>$null; Remove-Item "C:\ProgramData\NetTrace" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item "C:\NetTrace-Tests" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item "C:\NetworkTraces" -Recurse -Force -ErrorAction SilentlyContinue; Uninstall-Module NetTrace -AllVersions -Force -ErrorAction SilentlyContinue; Remove-Module NetTrace -Force -ErrorAction SilentlyContinue
+```
+
+### **Selective Clean Slate Options**
+
+#### **Service Only Reset**
+```powershell
+# Remove only NetTrace service (keep module installed)
+nssm stop NetTraceService 2>$null
+nssm remove NetTraceService confirm 2>$null
+Remove-Item "C:\ProgramData\NetTrace" -Recurse -Force -ErrorAction SilentlyContinue
+Write-Host "Service reset complete. Module remains installed." -ForegroundColor Green
+```
+
+#### **Module Only Reset**
+```powershell
+# Remove only NetTrace module (keep service if needed)
+Uninstall-Module NetTrace -AllVersions -Force -ErrorAction SilentlyContinue
+Remove-Module NetTrace -Force -ErrorAction SilentlyContinue
+Write-Host "Module reset complete. Service remains if installed." -ForegroundColor Green
+```
+
+#### **Test Data Reset**
+```powershell
+# Remove only test data and trace files
+Remove-Item "C:\NetTrace-Tests" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "C:\NetworkTraces" -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem "C:\" -Filter "NetTrace_*.log" | Remove-Item -Force -ErrorAction SilentlyContinue
+Write-Host "Test data reset complete. Service and module remain." -ForegroundColor Green
+```
+
+### **Fresh Installation After Clean Slate**
+
+After running the clean slate procedure:
+
+```powershell
+# 1. Fresh module installation
+Install-Module -Name NetTrace -Force
+
+# 2. Verify installation
+Get-Module NetTrace -ListAvailable
+
+# 3. Import module
+Import-Module NetTrace
+
+# 4. Test basic functionality
+NetTrace -File 2 -FileSize 10 -Path "C:\NetworkTraces" -Log
+
+# 5. Test persistence functionality
+NetTrace -File 3 -FileSize 10 -Path "C:\NetworkTraces" -Persistence $true -Log
+```
+
+### **When to Use Clean Slate**
+
+Use the clean slate procedure when experiencing:
+
+- ✅ **Service stuck in PAUSED state**
+- ✅ **"Service already exists" errors**
+- ✅ **Parameter configuration issues**
+- ✅ **Module version conflicts**
+- ✅ **NSSM installation problems**
+- ✅ **Cross-user session issues**
+- ✅ **Persistent configuration errors**
+- ✅ **Before major version upgrades**
+- ✅ **When switching test environments**
+
 ## Quick Reference Commands
 
 ### Start Monitoring
