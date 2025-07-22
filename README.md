@@ -1,67 +1,49 @@
 # NetTrace PowerShell Module
 
-A professional PowerShell module for Windows network tracing using the native `netsh trace` utility with circular file management and non-blocking background operation.
+A professional PowerShell module for Windows network tracing using the native `netsh trace` utility with circular file management, non-blocking background operation, and enterprise-grade persistence capabilities.
 
-## Features
+## Synopsis
 
-- **Non-Blocking Operation**: Runs in background, returns console immediately
-- **Automatic Log Files**: All activity logged to timestamped files
-- **Circular File Management**: Maintains fixed number of files, deletes oldest when full
-- **Clean Console Output**: No netsh spam, minimal user-friendly messages
-- **Professional Stop Functionality**: Use `NetTrace -Stop` (no more CTRL+C needed)
-- **Optional Activity Logging**: Enable detailed progress logging with `-Log` parameter
-- **Optional Technical Logging**: Save netsh technical details when needed
-- **Real-time Monitoring**: Optional log file monitoring with `Get-Content -Wait`
+NetTrace solves the fundamental limitations of native `netsh trace` by providing a professional, production-ready network tracing solution. While `netsh trace` is powerful, it has significant drawbacks for enterprise use:
 
-## Version 1.3.6 - Enhanced Documentation
+- **Blocking operation** - Console locks up during capture
+- **Manual file management** - No automatic rotation or cleanup
+- **No persistence** - Stops when user logs out or system reboots
+- **Poor user experience** - Requires CTRL+C to stop, no progress visibility
+- **Limited logging** - No activity tracking or troubleshooting data
 
-📚 **LATEST RELEASE**: Version 1.3.6 provides comprehensive documentation for the bulletproof Windows Service persistence delivered in v1.3.5. This documentation-enhanced release makes enterprise-grade features more accessible with detailed guides, examples, and troubleshooting procedures.
+NetTrace transforms `netsh trace` into an enterprise-grade tool with automatic file rotation, background operation, comprehensive logging, and true persistence that survives user sessions and system reboots.
 
-### Key Improvements in v1.3.5:
-- ✅ **Fixed Parameter Scoping Issues** - Resolved dot-sourcing parameter conflicts
-- ✅ **Enhanced Service State Management** - Automatic recovery from PAUSED states
-- ✅ **Robust Parameter Validation** - Prevents empty configuration values
-- ✅ **Cross-User Session Support** - Monitor and control from any user session
-- ✅ **Comprehensive Error Diagnostics** - Detailed error reporting and recovery
-- ✅ **Race Condition Handling** - Eliminates service start/stop conflicts
-- ✅ **One-Command Operation** - Single command installs, configures, and starts service
+## Use Case & Problem Solved
 
-### Production Features:
-- ✅ **Genuine Windows Service** - always runs as LocalSystem (SYSTEM context)
-- ✅ **Survives user logouts** - continues monitoring when all users log off
-- ✅ **Survives system reboots** - auto-starts after system restart
-- ✅ **Automatic service management** - downloads and configures NSSM automatically
-- ✅ **Perfect file rotation** - maintains exact file counts and sizes
-- ✅ **Cross-session persistence** - works across RDP/user session changes
+### The Native NetSh Trace Problem
 
-All existing commands work exactly the same - this version provides enhanced reliability with no breaking changes.
+Native `netsh trace` has these limitations:
 
-## Requirements
-
-- **Windows 10/11** with netsh utility
-- **PowerShell 5.1** or PowerShell 7+
-- **Administrator privileges** (required for network tracing)
-
-## Quick Reference - Persistence Mode
-
-**Start persistent trace (survives user logout & reboot):**
 ```powershell
-NetTrace -File 3 -FileSize 10 -Path "C:\NetworkTraces" -Persistence $true -Log
+# Native netsh trace - BLOCKS console, manual file management
+netsh trace start capture=yes tracefile=C:\traces\trace.etl maxsize=100
+
+# Console is now locked until you press CTRL+C
+# No automatic file rotation
+# No persistence across sessions
+# No activity logging
+# No progress visibility
 ```
 
-**Monitor service status:**
-```powershell
-Get-Service NetTraceService; nssm status NetTraceService
-```
+### NetTrace Solution
 
-**Check trace files:**
-```powershell
-Get-ChildItem "C:\NetworkTraces" | Select-Object Name, Length, LastWriteTime
-```
+NetTrace provides a complete enterprise solution:
 
-**Stop persistent trace:**
 ```powershell
-NetTrace -Stop
+# NetTrace - Non-blocking, automatic rotation, persistence
+NetTrace -File 5 -FileSize 100 -Path "C:\NetworkTraces" -Persistence $true -Log
+
+# Console immediately available for other work
+# Automatic file rotation (keeps 5 files, 100MB each)
+# Survives user logout and system reboot
+# Comprehensive activity logging
+# Real-time progress monitoring
 ```
 
 ## Installation
@@ -96,43 +78,60 @@ This module requires Administrator privileges. Please run PowerShell as Administ
 1. Right-click on PowerShell and select "Run as Administrator"
 2. Or use `Start-Process PowerShell -Verb RunAs`
 
-## Usage
+## Basic File Rotation Instructions
 
-### Quick Start - Persistence Mode
+### Core Concept
 
-For **true persistent network tracing** that survives user logouts and system reboots:
+NetTrace implements intelligent circular file management:
 
+1. **Creates files sequentially** until reaching the specified count
+2. **When creating a new file**, automatically deletes the oldest file
+3. **Maintains exact file count** and size limits
+4. **Runs continuously** until manually stopped
+
+### Basic Usage Examples
+
+#### Simple File Rotation (2 files, 50MB each)
 ```powershell
-# Single command - automatic service installation and start
-NetTrace -File 3 -FileSize 10 -Path "C:\NetworkTraces" -Persistence $true -Log -Verbose
-
-# Monitor service status
-Get-Service NetTraceService
-nssm status NetTraceService
-
-# Check trace files are being created
-Get-ChildItem "C:\NetworkTraces" | Select-Object Name, Length, LastWriteTime
-
-# Stop the persistent trace
-NetTrace -Stop
+NetTrace -File 2 -FileSize 50 -Path "C:\NetworkTraces"
 ```
 
-**Service Monitoring Commands:**
+**Expected file sequence:**
+```
+File #1: ServerName_22-01-25-140530.etl (50MB) - Created
+File #2: ServerName_22-01-25-142545.etl (50MB) - Created  
+File #3: ServerName_22-01-25-144601.etl (50MB) - Created, File #1 deleted
+File #4: ServerName_22-01-25-150616.etl (50MB) - Created, File #2 deleted
+```
+
+#### Enterprise Rotation (10 files, 100MB each)
 ```powershell
-# Service status (from any user session)
-Get-Service NetTraceService | Select-Object Name, Status, StartType
-nssm status NetTraceService
+NetTrace -File 10 -FileSize 100 -Path "D:\NetworkLogs\Production" -Log
+```
 
-# Service configuration
-Get-Content "C:\ProgramData\NetTrace\service_config.json" | ConvertFrom-Json
+**Benefits:**
+- **1GB total storage** (10 × 100MB)
+- **Automatic cleanup** - No manual file management
+- **Continuous capture** - No gaps in network data
+- **Predictable storage** - Never exceeds configured limits
 
-# Service logs  
-Get-Content "C:\ProgramData\NetTrace\service.log" -Tail 10
+### File Rotation Commands
 
-# Trace activity logs
-Get-Content "C:\NetworkTraces\NetTrace_*.log" -Tail 10
+#### Check Current Files
+```powershell
+# List all trace files with details
+Get-ChildItem "C:\NetworkTraces" -Filter "*.etl" | 
+    Select-Object Name, @{N='SizeMB';E={[math]::Round($_.Length/1MB,2)}}, LastWriteTime
 
-# Real-time file monitoring
+# Count files and total size
+$files = Get-ChildItem "C:\NetworkTraces" -Filter "*.etl"
+$totalSize = [math]::Round(($files | Measure-Object Length -Sum).Sum / 1MB, 2)
+Write-Host "Files: $($files.Count) | Total Size: ${totalSize}MB"
+```
+
+#### Monitor File Rotation in Real-Time
+```powershell
+# Watch files being created and rotated
 while ($true) {
     $files = Get-ChildItem "C:\NetworkTraces" -Filter "*.etl"
     $totalSize = [math]::Round(($files | Measure-Object Length -Sum).Sum / 1MB, 2)
@@ -141,180 +140,61 @@ while ($true) {
 }
 ```
 
-### Basic Syntax
-
+#### Check Rotation Activity
 ```powershell
-NetTrace -File <integer> -FileSize <integer> -Path <string> [-Log] [-Verbose] [-LogNetshOutput]
-NetTrace -Stop
+# View rotation events in activity logs
+Get-Content "C:\NetworkTraces\NetTrace_*.log" | Where-Object { $_ -match "Removed oldest file" }
 ```
 
-### Parameters
-
-- **`-File`**: Maximum number of trace files to maintain (circular buffer)
-- **`-FileSize`**: Maximum size of each file in MB (minimum 10 MB due to netsh limitation)
-- **`-Path`**: Directory path where trace files will be stored
-- **`-Log`**: Enables detailed activity logging to timestamped log files (optional)
-- **`-Verbose`**: Shows detailed progress information (optional)
-- **`-LogNetshOutput`**: Saves netsh technical details to `netsh_trace.log` (optional)
-- **`-Persistence`**: Enables persistent capture that continues after system reboot (optional). Accepts: $true/$false, true/false, or "true"/"false"
-- **`-Stop`**: Stops the currently running trace
-
-**Important**: Netsh trace has a minimum file size of 10MB. Values less than 10MB will cause netsh to default to 512MB files.
-
-## Logging Options
-
-### `-Log` Parameter (Activity Logging)
-**Purpose**: Logs NetTrace module operations and file management activities.
-
-**What it includes**:
-- File creation and rotation events
-- File size monitoring progress  
-- Circular management (file deletions)
-- Session start/stop information
-- Error messages and summaries
-
-**Log file**: `NetTrace_YYYY-MM-DD_HHMMSS.log`
-
-**When to use**: 
-- Monitor trace progress and file operations
-- Troubleshoot NetTrace module behavior
-- Track file creation/rotation statistics
-
-### `-LogNetshOutput` Parameter (Technical Logging)
-**Purpose**: Logs raw netsh trace command output and diagnostics.
-
-**What it includes**:
-- Raw netsh trace start/stop output
-- Provider configuration details
-- Windows networking trace diagnostics
-- Low-level netsh error messages
-
-**Log file**: `netsh_trace.log`
-
-**When to use**:
-- Debug netsh trace command failures
-- Advanced Windows networking troubleshooting
-- Capture technical details for support tickets
-
-### No Logging (Default)
-**Purpose**: Minimal disk I/O with lean operation.
-
-**Benefits**:
-- Faster performance (no log file writes)
-- Reduced disk space usage
-- Clean operation for production environments
-
-## Persistence Feature
+## Persistence Capture Instructions
 
 ### Overview
-The `-Persistence` parameter enables **true persistent network traces** that survive user session termination and system reboots using a Windows Service-based architecture. This advanced feature provides enterprise-grade persistence beyond what netsh trace's `persistent=yes` parameter alone can offer.
 
-### How It Works
-- **True Windows Service**: Uses NSSM (Non-Sucking Service Manager) for genuine Windows Service implementation
-- **Always runs as LocalSystem**: The NetTrace service is installed to run as the LocalSystem (SYSTEM) account, guaranteeing persistence across logoff and reboot, regardless of which user installs it.
-- **Complete Session Independence**: Runs in SYSTEM context, completely independent of user sessions
-- **Automatic Service Management**: Downloads and configures NSSM automatically when needed
-- **Persistent File Management**: File rotation and circular management continue regardless of user sessions
-- **System Reboot Survival**: Service auto-starts after system reboot with full configuration
-- **Native Integration**: Still uses netsh trace's `persistent=yes` parameter for optimal performance
+NetTrace's persistence feature provides **true enterprise-grade persistence** that survives:
+- ✅ **User session termination** (RDP disconnect, logout)
+- ✅ **System reboots** (maintenance, updates)
+- ✅ **Service restarts** (Windows service management)
+- ✅ **Cross-user sessions** (monitor from any user account)
 
-### True Persistence vs Basic Persistence
-| Feature | Basic (netsh only) | True Persistence (Service) |
-|---------|-------------------|---------------------------|
-| Survives reboot | ✅ | ✅ |
+### Persistence vs Basic NetSh
+
+| Feature | Native NetSh | NetTrace Persistence |
+|---------|-------------|---------------------|
+| Survives reboot | ❌ | ✅ |
 | Survives user logout | ❌ | ✅ |
 | File rotation continues | ❌ | ✅ |
-| Circular management | ❌ | ✅ |
-| Session independence | ❌ | ✅ |
+| Cross-session monitoring | ❌ | ✅ |
+| Automatic service management | ❌ | ✅ |
 
-### Usage
+### Persistence Examples
+
+#### Basic Persistence Setup
 ```powershell
-NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true
+# Start persistent capture (survives logout & reboot)
+NetTrace -File 3 -FileSize 50 -Path "C:\NetworkTraces" -Persistence $true -Log
+
+# Expected output:
+# Starting Windows Service persistent network trace...
+# Path: C:\NetworkTraces
+# Max Files: 3
+# Max Size: 50 MB
+# True Windows Service persistence: Enabled
+# Windows Service persistent trace started successfully.
 ```
 
-### Benefits
-- **True Session Independence**: Continues even when all users log out
-- **Complete File Management**: Automatic rotation and circular management persist
-- **Enterprise Ready**: Suitable for production monitoring and long-term analysis
-- **Maintenance Window Safe**: Survives system reboots and maintenance activities
-- **Zero User Intervention**: Runs completely independently once started
-
-### Service Management
-The persistence feature automatically manages Windows Services behind the scenes:
-
+#### Enterprise Persistence Deployment
 ```powershell
-# Check service status
-Get-NetTraceStatus
+# Production server monitoring
+NetTrace -File 10 -FileSize 100 -Path "D:\NetworkLogs\Production" -Persistence $true -Log -Verbose
 
-# Stop persistent trace (same command as always)
-NetTrace -Stop
+# Service continues running even after:
+# - Administrator logout
+# - RDP session disconnect  
+# - System maintenance reboot
+# - User account changes
 ```
 
-### Service Requirements
-The Windows Service persistence feature has the following requirements:
-
-- **NSSM**: Downloaded automatically from https://nssm.cc/ when needed
-- **Administrator privileges**: Required for service installation and management
-- **Windows Service Manager**: Uses standard Windows Service controls
-- **Automatic installation**: Service is installed automatically when persistence is first requested
-
-### Service Installation Details
-When you first use `-Persistence true`, the module will:
-
-1. **Download NSSM** from the official source (https://nssm.cc/)
-2. **Install NetTrace Windows Service** using NSSM
-3. **Configure service settings** for automatic startup and recovery
-4. **Start the service** with your specified parameters
-
-No manual service installation is required - everything is handled automatically.
-
-### Recommendations
-- **File Size**: Use `-FileSize >= 10MB` for optimal performance with persistence
-- **Monitoring**: Combine with `-Log` parameter for comprehensive tracking
-- **Storage**: Ensure adequate disk space for extended captures
-- **Service Logs**: Check `$env:ProgramData\NetTrace\service.log` for service-level diagnostics
-- **Cleanup**: Always use `NetTrace -Stop` when capture is complete
-
-### Example Output
-```powershell
-NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true -Log
-```
-**Output:**
-```
-Starting Windows Service persistent network trace...
-Path: C:\Traces
-Max Files: 3
-Max Size: 10 MB
-True Windows Service persistence: Enabled (capture will survive user session termination and system reboots)
-Windows Service persistent trace started successfully.
-All output is being logged to: C:\Traces\NetTrace_2025-01-08_144228.log
-You can monitor progress with: Get-Content 'C:\Traces\NetTrace_*.log' -Wait
-Use 'NetTrace -Stop' to stop the Windows Service trace.
-```
-
-### Status Monitoring
-Use the new `Get-NetTraceStatus` command for quick status checks:
-
-```powershell
-Get-NetTraceStatus
-```
-**Output:**
-```
-IsRunning     : True
-FilesCreated  : 2
-FilesRolled   : 1
-Mode          : WindowsService
-Path          : C:\Traces
-MaxFiles      : 3
-MaxSizeMB     : 10
-Persistence   : True
-LoggingEnabled: True
-LastUpdate    : 2025-01-22 14:45:30
-```
-
-### Multi-User Session Testing
-**Test persistence across user sessions:**
-
+#### Multi-User Session Testing
 ```powershell
 # User 1: Start persistent trace
 NetTrace -File 3 -FileSize 20 -Path "C:\SharedTraces" -Persistence $true -Log
@@ -338,292 +218,221 @@ while ($true) {
 NetTrace -Stop
 ```
 
-### Production Deployment Example
+## Monitoring the Trace
+
+### Service Status Monitoring
+
+#### Quick Service Status
 ```powershell
-# Production server network monitoring
-NetTrace -File 5 -FileSize 100 -Path "D:\NetworkLogs\Production" -Persistence $true -Log -Verbose
-
-# Expected file structure after 24 hours:
-# D:\NetworkLogs\Production\
-#   ├── ServerName_22-01-25-140530.etl (100 MB)
-#   ├── ServerName_22-01-25-142545.etl (100 MB)  
-#   ├── ServerName_22-01-25-144601.etl (100 MB)
-#   ├── ServerName_22-01-25-150616.etl (100 MB)
-#   ├── ServerName_22-01-25-152632.etl (85 MB - current)
-#   └── NetTrace_2025-01-22_140525.log (activity log)
-
-# Service continues running even after:
-# - Administrator logout
-# - RDP session disconnect  
-# - System maintenance reboot
-# - User account changes
-```
-
-## Examples
-
-### Basic Usage (No Logging - Minimal Disk I/O)
-```powershell
-NetTrace -File 2 -FileSize 10 -Path "C:\Traces"
-```
-**Output:**
-```
-Trace monitoring started in background.
-Logging is disabled. Use -Log parameter to enable detailed logging.
-Use 'NetTrace -Stop' to stop the trace.
-
-PS C:\> █  # Console immediately available
-```
-
-### With Activity Logging
-```powershell
-NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -Log
-```
-**Output:**
-```
-Trace monitoring started in background.
-All output is being logged to: C:\Traces\NetTrace_2025-06-28_145500.log
-Use 'NetTrace -Stop' to stop the trace.
-You can monitor progress with: Get-Content 'C:\Traces\NetTrace_2025-06-28_145500.log' -Wait
-
-PS C:\> █  # Console immediately available
-```
-
-### With Verbose Output
-```powershell
-NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -Verbose
-```
-**Shows additional startup information and detailed progress**
-
-### With Technical Logging
-```powershell
-NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -LogNetshOutput
-```
-**Creates additional `netsh_trace.log` with technical details**
-
-### With Both Activity and Technical Logging
-```powershell
-NetTrace -File 2 -FileSize 10 -Path "C:\Traces" -Log -LogNetshOutput
-```
-**Creates both activity logs and technical netsh logs for comprehensive troubleshooting**
-
-### With Persistence (Survives System Reboot)
-```powershell
-# All these formats work:
-NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence true -Log
-NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence $true -Log
-NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence "true" -Log
-```
-**Expected Output:**
-```
-Starting Windows Service persistent network trace...
-Path: C:\Traces
-Max Files: 3
-Max Size: 10 MB
-True Windows Service persistence: Enabled (capture will survive user session termination and system reboots)
-
-NetTrace Windows Service installed successfully
-  Service Name: NetTraceService
-  Display Name: NetTrace Network Monitoring Service
-  Startup Type: Automatic
-  Service Type: Windows Service (NSSM)
-
-Windows Service persistent trace started successfully.
-  Path: C:\Traces
-  Max Files: 3
-  Max Size: 10 MB
-All output is being logged to: C:\Traces\NetTrace_2025-01-22_165520.log
-Use 'NetTrace -Stop' to stop the Windows Service trace.
-```
-
-### Real-World Enterprise Example
-```powershell
-# Enterprise network monitoring setup
-NetTrace -File 10 -FileSize 50 -Path "D:\NetworkMonitoring\Production" -Persistence $true -Log -Verbose
-
-# Monitor from different user session or after logout
+# Basic service status
 Get-Service NetTraceService | Select-Object Name, Status, StartType
+
+# NSSM detailed status
 nssm status NetTraceService
-Get-ChildItem "D:\NetworkMonitoring\Production" | Measure-Object Length -Sum
 
-# Stop when analysis complete
-NetTrace -Stop
+# Combined status check
+Get-Service NetTraceService; nssm status NetTraceService
 ```
 
-### Monitor Progress (Optional - Requires `-Log` Parameter)
+#### NetTrace Built-in Status
 ```powershell
-# In same or different PowerShell window
-Get-Content "C:\Traces\NetTrace_*.log" -Wait
-```
-**Note**: Progress monitoring requires the `-Log` parameter to be used when starting the trace.
-
-### Stop Trace
-```powershell
-NetTrace -Stop
-```
-**Output:**
-```
-Trace stopped.
-Final logs saved to: C:\Traces\NetTrace_2025-06-28_145500.log
-```
-
-### Check Status
-```powershell
+# Comprehensive status from NetTrace
 Get-NetTraceStatus
-```
-**Shows current trace status, file counts, and configuration for both job-based and service-based traces**
 
-## How Circular File Management Works
-
-1. **Creates files sequentially** until reaching the specified count (e.g., 2 files)
-2. **When creating file #3**, automatically deletes the oldest file (#1)
-3. **Continues indefinitely** maintaining only the specified number of files
-4. **Runs until manually stopped** with `NetTrace -Stop`
-
-**Example with 2 files:**
-- Creates: `File #1`, `File #2`
-- Creates: `File #3` → Deletes `File #1`
-- Creates: `File #4` → Deletes `File #2`
-- And so on...
-
-## File Formats
-
-### Network Trace Files
-```
-<computername>_dd-MM-yy-HHmmss.etl
-```
-**Examples:**
-- `MYPC_28-06-25-145501.etl`
-- `SERVER01_28-06-25-145616.etl`
-
-### Activity Log Files (Only with `-Log` Parameter)
-```
-NetTrace_yyyy-MM-dd_HHmmss.log
-```
-**Examples:**
-- `NetTrace_2025-06-28_145500.log`
-
-**Note**: These files are only created when using the `-Log` parameter.
-
-### Sample Log Content
-```
-NetTrace session started at 06/28/2025 14:55:00
-Command: NetTrace -File 2 -FileSize 10 -Path 'C:\Traces'
-============================================================
-
-14:55:01 - Creating File #1 : MYPC_28-06-25-145501.etl
-14:55:01 - Netsh trace started for: MYPC_28-06-25-145501.etl
-14:55:01 - Monitoring file size (limit: 10 MB)...
-14:55:02 - File: MYPC_28-06-25-145501.etl - Size: 1.2 MB / 10 MB
-14:56:15 - Size limit reached! Rolling to new file...
-14:56:16 - Creating File #2 : MYPC_28-06-25-145616.etl
-14:56:17 - Creating File #3 : MYPC_28-06-25-145617.etl
-14:56:17 - Removed oldest file: MYPC_28-06-25-145501.etl
-...
+# Expected output:
+# IsRunning     : True
+# FilesCreated  : 3
+# FilesRolled   : 2
+# Mode          : WindowsService
+# Path          : C:\NetworkTraces
+# MaxFiles      : 5
+# MaxSizeMB     : 50
+# Persistence   : True
+# LoggingEnabled: True
+# LastUpdate    : 2025-01-22 14:45:30
 ```
 
-## Testing
+### File System Monitoring
 
-### Comprehensive Test Suite
+#### Real-Time File Monitoring
 ```powershell
-# Run the complete test suite with interactive menu
-.\Test-NetTrace-Complete.ps1
+# Monitor trace files being created
+Get-ChildItem "C:\NetworkTraces" | Select-Object Name, Length, LastWriteTime
+
+# Monitor file sizes and count
+$files = Get-ChildItem "C:\NetworkTraces" -Filter "*.etl"
+$totalSize = [math]::Round(($files | Measure-Object Length -Sum).Sum / 1MB, 2)
+Write-Host "Files: $($files.Count) | Total Size: ${totalSize}MB"
+
+# Show newest file details
+Get-ChildItem "C:\NetworkTraces" -Filter "*.etl" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 ```
 
-**Available test options:**
-- **Quick Test**: 2-3 minute basic functionality validation
-- **Standard Test**: 5-10 minute comprehensive testing
-- **Circular Test**: Manual circular file management demonstration
-- **Parameter Test**: Input validation testing
-- **Performance Test**: Console responsiveness validation
-- **Full Test Suite**: Complete 15-20 minute regression testing
-
-### Generate Network Traffic (for testing)
+#### Continuous File Monitoring Dashboard
 ```powershell
-# Create network activity to fill trace files faster
-.\Generate-NetworkTraffic.ps1
+# Advanced monitoring dashboard
+while ($true) {
+    Clear-Host
+    Write-Host "=== NetTrace Monitoring Dashboard ===" -ForegroundColor Green
+    Write-Host "Time: $(Get-Date)" -ForegroundColor Cyan
+    
+    # Service status
+    $service = Get-Service NetTraceService -ErrorAction SilentlyContinue
+    $nssmStatus = & nssm status NetTraceService 2>$null
+    Write-Host "Service Status: $($service.Status) | NSSM: $nssmStatus" -ForegroundColor Yellow
+    
+    # File analysis
+    $files = Get-ChildItem "C:\NetworkTraces" -Filter "*.etl" -ErrorAction SilentlyContinue
+    if ($files) {
+        Write-Host "`nTrace Files:" -ForegroundColor White
+        $files | Sort-Object LastWriteTime | ForEach-Object {
+            $sizeMB = [math]::Round($_.Length / 1MB, 2)
+            $age = (Get-Date) - $_.LastWriteTime
+            Write-Host "  $($_.Name) - ${sizeMB}MB (Age: $($age.TotalMinutes.ToString('F1'))min)" -ForegroundColor Gray
+        }
+        
+        $totalSize = [math]::Round(($files | Measure-Object Length -Sum).Sum / 1MB, 2)
+        Write-Host "`nSummary: $($files.Count) files, ${totalSize}MB total" -ForegroundColor Green
+    } else {
+        Write-Host "`nNo trace files found yet..." -ForegroundColor Red
+    }
+    
+    Start-Sleep -Seconds 15
+}
 ```
 
-## Advanced Features
+### NSSM Service Monitoring
 
-### Windows Service Support
-For persistent operation that survives user logouts and system reboots, the module includes Windows Service support:
-
+#### NSSM Configuration Verification
 ```powershell
-# Install and start the NetTrace service
-.\NetTrace-ServiceRunner.ps1 -Install
-
-# Stop and remove the service
-.\NetTrace-ServiceRunner.ps1 -Uninstall
+# Check NSSM service configuration
+nssm get NetTraceService Application
+nssm get NetTraceService AppParameters
+nssm get NetTraceService AppDirectory
+nssm get NetTraceService Start
+nssm get NetTraceService ObjectName
 ```
 
-### Scheduled Task Support
-For automated network tracing on a schedule:
-
+#### NSSM Service Control
 ```powershell
-# Create scheduled task for automated tracing
-.\NetTrace-ScheduledTask.ps1
+# Start service via NSSM
+nssm start NetTraceService
+
+# Stop service via NSSM
+nssm stop NetTraceService
+
+# Restart service via NSSM
+nssm restart NetTraceService
+
+# Check NSSM status
+nssm status NetTraceService
 ```
 
-### Setup Guide
-For detailed instructions on setting up persistent operation, see:
-- `PERSISTENT_SETUP_GUIDE.md` - Comprehensive guide for service and task setup
+### Log File Monitoring
 
-## Key Benefits
-
-### ✅ **Professional User Experience**
-- **Non-blocking console** - returns immediately
-- **Clean output** - no netsh spam
-- **Proper stop functionality** - no CTRL+C needed
-- **Comprehensive logging** - all activity tracked
-
-### ✅ **Enterprise Features**
-- **Background operation** - doesn't interfere with other work
-- **Automatic log management** - timestamped activity logs
-- **Circular file management** - prevents disk space issues
-- **Optional technical logging** - detailed troubleshooting data
-
-### ✅ **Reliability**
-- **Proper resource cleanup** - background jobs managed correctly
-- **Error handling** - graceful failure handling
-- **Administrator validation** - clear privilege requirements
-- **File size validation** - prevents netsh default behavior
-
-## Technical Architecture
-
-- **Background Jobs**: PowerShell jobs handle monitoring without blocking console
-- **Flag File Communication**: Clean job termination using temporary flag files
-- **Output Capture**: All netsh output captured and redirected to log files
-- **Circular Buffer**: Automatic oldest file deletion when limit exceeded
-
-## Troubleshooting
-
-### Common Issues
-
-**"Access Denied" Errors**
-- Ensure PowerShell is running as Administrator
-- Verify you have admin rights on the system
-
-**Module Import Fails**
+#### Service Activity Logs
 ```powershell
-# Check execution policy
-Get-ExecutionPolicy
+# Monitor service internal logs
+Get-Content "C:\ProgramData\NetTrace\service.log" -Tail 10
 
-# If restricted, allow for current user
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+# Real-time service log monitoring
+Get-Content "C:\ProgramData\NetTrace\service.log" -Wait -Tail 5
+
+# Filter for errors only
+Get-Content "C:\ProgramData\NetTrace\service.log" | Where-Object { $_ -match "ERROR" }
 ```
 
-**Console Still Blocking**
-- Verify you're using the latest version of the module
-- Run `.\Simple-Test.ps1` to validate non-blocking behavior
+#### NetTrace Activity Logs
+```powershell
+# Monitor NetTrace activity logs (requires -Log parameter)
+Get-Content "C:\NetworkTraces\NetTrace_*.log" -Tail 10
 
-**Files Not Created**
-- Check that netsh trace is available on your system
-- Ensure no other network traces are running
-- Verify the target directory is writable
+# Real-time activity monitoring
+Get-Content "C:\NetworkTraces\NetTrace_*.log" -Wait -Tail 5
 
-### Persistence Mode Troubleshooting
+# Find the most recent log file
+$latestLog = Get-ChildItem "C:\NetworkTraces" -Filter "NetTrace_*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if ($latestLog) {
+    Get-Content $latestLog.FullName -Tail 10
+}
+```
 
-**Service Not Starting (SERVICE_PAUSED)**
+### Service Configuration Monitoring
+
+#### Service Configuration Verification
+```powershell
+# Check current service configuration
+Get-Content "C:\ProgramData\NetTrace\service_config.json" | ConvertFrom-Json | Format-List
+
+# Expected output:
+# Path          : C:\NetworkTraces
+# MaxFiles      : 3
+# MaxSizeMB     : 50
+# LogOutput     : True
+# EnableLogging : True
+# StartTime     : 2025-01-22 14:45:30
+# ServiceVersion: 1.3.6
+```
+
+#### Service Wrapper Verification
+```powershell
+# Check service wrapper batch file
+Get-Content "C:\ProgramData\NetTrace\NetTrace-Service.bat"
+
+# Expected content:
+# @echo off
+# REM NetTrace Service Wrapper
+# cd /d "C:\Program Files\WindowsPowerShell\Modules\NetTrace\1.3.6"
+# powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "C:\Program Files\WindowsPowerShell\Modules\NetTrace\1.3.6\NetTrace-Service.ps1" -ServiceMode
+# exit /b %ERRORLEVEL%
+```
+
+### Advanced Monitoring Scripts
+
+#### One-Liner Status Check
+```powershell
+Write-Host "Service: $(Get-Service NetTraceService -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Status) | Files: $((Get-ChildItem 'C:\NetworkTraces' -Filter '*.etl' -ErrorAction SilentlyContinue).Count) | Size: $([math]::Round(((Get-ChildItem 'C:\NetworkTraces' -Filter '*.etl' -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum / 1MB), 2))MB"
+```
+
+#### File Rotation Detection
+```powershell
+# Monitor for file rotation events
+$initialCount = (Get-ChildItem "C:\NetworkTraces" -Filter "*.etl").Count
+while ($true) {
+    $currentCount = (Get-ChildItem "C:\NetworkTraces" -Filter "*.etl" -ErrorAction SilentlyContinue).Count
+    if ($currentCount -ne $initialCount) {
+        Write-Host "[$(Get-Date -Format 'HH:mm:ss')] File rotation detected! Files: $initialCount → $currentCount" -ForegroundColor Yellow
+        $initialCount = $currentCount
+    }
+    Start-Sleep -Seconds 5
+}
+```
+
+#### PowerShell Profile Integration
+```powershell
+# Add these functions to your PowerShell profile for easy access
+function Watch-NetTrace {
+    param([string]$Path = "C:\NetworkTraces")
+    
+    while ($true) {
+        $service = Get-Service NetTraceService -ErrorAction SilentlyContinue
+        $files = Get-ChildItem $Path -Filter "*.etl" -ErrorAction SilentlyContinue
+        $totalSize = if ($files) { [math]::Round(($files | Measure-Object Length -Sum).Sum / 1MB, 2) } else { 0 }
+        
+        Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Service: $($service.Status) | Files: $($files.Count) | Total: ${totalSize}MB" -ForegroundColor Green
+        Start-Sleep -Seconds 10
+    }
+}
+
+function Get-NetTraceFiles {
+    param([string]$Path = "C:\NetworkTraces")
+    Get-ChildItem $Path -Filter "*.etl" | Select-Object Name, @{N='SizeMB';E={[math]::Round($_.Length/1MB,2)}}, LastWriteTime
+}
+```
+
+### Troubleshooting Monitoring
+
+#### Service Not Starting
 ```powershell
 # Check service logs for errors
 Get-Content "C:\ProgramData\NetTrace\service.log" -Tail 20
@@ -635,31 +444,35 @@ Get-WinEvent -LogName System -MaxEvents 10 | Where-Object {$_.ProviderName -like
 nssm restart NetTraceService
 ```
 
-**Service Shows Stopped But Files Still Growing**
-- This is normal during service transitions
-- Wait 30 seconds and check again
-- Service may be in graceful shutdown mode
+#### Service Shows Stopped But Files Still Growing
+```powershell
+# This is normal during service transitions
+# Wait 30 seconds and check again
+Start-Sleep -Seconds 30
+Get-Service NetTraceService
+nssm status NetTraceService
+```
 
-**Cross-User Session Monitoring**
+#### Cross-User Session Monitoring
 ```powershell
 # From any user session, monitor service
 Get-Service NetTraceService
 nssm status NetTraceService
 
 # Monitor files (works from any user since service runs as LocalSystem)
-Get-ChildItem "C:\YourTracePath" | Sort-Object LastWriteTime -Descending | Select-Object -First 5
+Get-ChildItem "C:\NetworkTraces" | Sort-Object LastWriteTime -Descending | Select-Object -First 5
 ```
 
-**Service Configuration Issues**
+#### Service Configuration Issues
 ```powershell
 # Check if parameters were saved correctly
 Get-Content "C:\ProgramData\NetTrace\service_config.json" | ConvertFrom-Json | Format-List
 
 # If config shows empty values, restart NetTrace command
-NetTrace -File 3 -FileSize 10 -Path "C:\YourPath" -Persistence $true -Log
+NetTrace -File 3 -FileSize 10 -Path "C:\NetworkTraces" -Persistence $true -Log
 ```
 
-**Clean Service Reset**
+#### Clean Service Reset
 ```powershell
 # Complete service cleanup and reinstall
 nssm stop NetTraceService
@@ -667,8 +480,71 @@ nssm remove NetTraceService confirm
 Remove-Item "C:\ProgramData\NetTrace" -Recurse -Force -ErrorAction SilentlyContinue
 
 # Reinstall with fresh configuration
-NetTrace -File 3 -FileSize 10 -Path "C:\YourPath" -Persistence $true -Log
+NetTrace -File 3 -FileSize 10 -Path "C:\NetworkTraces" -Persistence $true -Log
 ```
+
+## Quick Reference Commands
+
+### Start Monitoring
+```powershell
+# Basic persistent trace
+NetTrace -File 3 -FileSize 10 -Path "C:\NetworkTraces" -Persistence $true -Log
+
+# Monitor service status
+Get-Service NetTraceService; nssm status NetTraceService
+
+# Check trace files
+Get-ChildItem "C:\NetworkTraces" | Select-Object Name, Length, LastWriteTime
+
+# Stop persistent trace
+NetTrace -Stop
+```
+
+### Monitoring Commands
+```powershell
+# Service status (from any user session)
+Get-Service NetTraceService | Select-Object Name, Status, StartType
+nssm status NetTraceService
+
+# Service configuration
+Get-Content "C:\ProgramData\NetTrace\service_config.json" | ConvertFrom-Json
+
+# Service logs  
+Get-Content "C:\ProgramData\NetTrace\service.log" -Tail 10
+
+# Trace activity logs
+Get-Content "C:\NetworkTraces\NetTrace_*.log" -Tail 10
+
+# Real-time file monitoring
+while ($true) {
+    $files = Get-ChildItem "C:\NetworkTraces" -Filter "*.etl"
+    $totalSize = [math]::Round(($files | Measure-Object Length -Sum).Sum / 1MB, 2)
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Files: $($files.Count) | Total: ${totalSize}MB"
+    Start-Sleep -Seconds 10
+}
+```
+
+## Version History
+
+- **v1.3.6**: Enhanced Documentation
+  - **Comprehensive Monitoring Guide**: Complete monitoring section with real-time dashboards
+  - **Restructured Documentation**: Logical flow from synopsis through installation, usage, and monitoring
+  - **Advanced Monitoring Scripts**: PowerShell profile integration and troubleshooting procedures
+  - **Cross-Session Monitoring**: Multi-user session testing and enterprise deployment examples
+- **v1.3.5**: Production-Ready Persistence with Enhanced Reliability
+  - **CRITICAL FIX**: Resolved parameter scoping issue where dot-sourcing NetTrace-ServiceRunner.ps1 overwrote function parameters
+  - **Enhanced Service State Management**: Robust NSSM service state checking with automatic recovery from PAUSED states
+  - **Comprehensive Parameter Validation**: Added validation to prevent empty configuration values that caused service failures
+  - **Race Condition Handling**: Prevents "already running" errors and service conflicts during start/stop operations
+  - **Cross-User Session Support**: Service monitoring and control works from any user session
+  - **Detailed Error Diagnostics**: Enhanced error reporting with service log analysis and recovery suggestions
+  - **One-Command Reliability**: Single command operation now works without manual intervention or service state conflicts
+
+## Requirements
+
+- **Windows 10/11** with netsh utility
+- **PowerShell 5.1** or PowerShell 7+
+- **Administrator privileges** (required for network tracing)
 
 ## Files in This Module
 
@@ -681,73 +557,6 @@ NetTrace -File 3 -FileSize 10 -Path "C:\YourPath" -Persistence $true -Log
 | `README.md` | Complete documentation (this file) |
 | `LICENSE` | MIT license file |
 
-### Core Functions
-- **`NetTrace`**: Main function with automatic persistence mode detection
-- **`Get-NetTraceStatus`**: Quick status checking for both job-based and service-based traces
-
-### Service Architecture
-- **Job-based Mode**: Traditional PowerShell background jobs (default for non-persistent traces)
-- **Service-based Mode**: Windows Services for true persistence (enabled with `-Persistence true`)
-- **Automatic Detection**: Unified `NetTrace -Stop` command works with both modes
-
 ## License
 
-This module is provided as-is for educational and administrative purposes.
-
-## Version History
-
-- **v1.3.6**: Comprehensive Documentation Enhancement
-  - **Enhanced README.md**: Complete persistence mode guide with service monitoring commands
-  - **Quick Reference Section**: Easy-access commands for persistence mode operations
-  - **Real-World Examples**: Enterprise deployment scenarios and expected outputs
-  - **Multi-User Session Testing**: Cross-user session monitoring and control examples
-  - **Comprehensive Troubleshooting**: Detailed persistence mode troubleshooting procedures
-  - **Production Deployment Guide**: File structure examples and monitoring best practices
-  - **No Code Changes**: Pure documentation enhancement to make v1.3.5 features more accessible
-- **v1.3.5**: Production-Ready Persistence with Enhanced Reliability
-  - **CRITICAL FIX**: Resolved parameter scoping issue where dot-sourcing NetTrace-ServiceRunner.ps1 overwrote function parameters
-  - **Enhanced Service State Management**: Robust NSSM service state checking with automatic recovery from PAUSED states
-  - **Comprehensive Parameter Validation**: Added validation to prevent empty configuration values that caused service failures
-  - **Race Condition Handling**: Prevents "already running" errors and service conflicts during start/stop operations
-  - **Cross-User Session Support**: Service monitoring and control works from any user session
-  - **Detailed Error Diagnostics**: Enhanced error reporting with service log analysis and recovery suggestions
-  - **One-Command Reliability**: Single command operation now works without manual intervention or service state conflicts
-- **v1.3.4**: Parameter Type Conversion Fix
-  - **Switch Parameter Fix**: Fixed boolean type conversion for LogNetshOutput and Log parameters between functions
-  - **Debug Logging**: Added parameter debugging to trace function call flow
-- **v1.3.3**: Service State Management Enhancement  
-  - **NSSM State Handling**: Enhanced service status checking and automatic paused service recovery
-  - **Parameter Validation**: Added comprehensive validation to prevent empty configuration values
-- **v1.2.6**: Implemented true persistence using Windows Services
-  - **True Persistence**: Service-based architecture for captures that survive user session termination and system reboots
-  - **Enhanced -Persistence Parameter**: Now uses Windows Services for true session-independent operation
-  - **New Command**: Added `Get-NetTraceStatus` for quick status checking without requiring -Log parameter
-  - **Service Management**: Added `NetTrace-Service.ps1` and `NetTrace-ServiceRunner.ps1` for service operations
-  - **Dual-Mode Operation**: Automatic detection between job-based and service-based persistence
-  - **Backward Compatibility**: Existing functionality unchanged, enhanced persistence is opt-in
-  - **Unified Stop Command**: Single `NetTrace -Stop` command works for both job-based and service-based traces
-- **v1.2.5**: Added basic persistence feature for long-running captures
-  - Added `-Persistence` parameter for captures that survive system reboot
-  - Integrated native netsh trace `persistent=yes` parameter
-  - Enhanced logging to include persistence status and configuration
-  - Updated documentation with comprehensive persistence feature guide
-  - Added persistence examples and usage recommendations
-- **v1.2.4**: Improved user experience and admin privilege handling
-  - Removed `#Requires -RunAsAdministrator` directive to allow module loading in non-admin sessions
-  - Module now provides proper error message when run without admin privileges
-  - Updated README with PowerShell Gallery installation instructions
-  - Added comprehensive admin privilege clarification and usage instructions
-  - Enhanced documentation for all module files and components
-- **v1.1.0**: Enhanced logging control and production improvements
-  - Added `-Log` parameter for optional activity logging
-  - Fixed file counter accuracy issues  
-  - Improved stop command reliability
-  - Consolidated test suite into single interactive script
-  - Enhanced documentation and help system
-  - PowerShell Gallery publication ready
-- **v1.0.0**: Production release with non-blocking operation and circular file management
-  - Non-blocking operation with background jobs
-  - Automatic circular file rotation
-  - Comprehensive logging capabilities
-  - Administrator privilege validation
-- **v0.9.0**: Initial development version with basic functionality 
+This module is provided as-is for educational and administrative purposes. 
