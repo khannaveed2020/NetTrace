@@ -13,9 +13,9 @@ A professional PowerShell module for Windows network tracing using the native `n
 - **Optional Technical Logging**: Save netsh technical details when needed
 - **Real-time Monitoring**: Optional log file monitoring with `Get-Content -Wait`
 
-## Version 1.3.5 - Production-Ready Persistence
+## Version 1.3.6 - Enhanced Documentation
 
-🎉 **LATEST STABLE RELEASE**: Version 1.3.5 delivers bulletproof Windows Service persistence with comprehensive parameter validation and robust NSSM service state management. This version eliminates all parameter passing issues and provides enterprise-grade reliability.
+📚 **LATEST RELEASE**: Version 1.3.6 provides comprehensive documentation for the bulletproof Windows Service persistence delivered in v1.3.5. This documentation-enhanced release makes enterprise-grade features more accessible with detailed guides, examples, and troubleshooting procedures.
 
 ### Key Improvements in v1.3.5:
 - ✅ **Fixed Parameter Scoping Issues** - Resolved dot-sourcing parameter conflicts
@@ -696,6 +696,14 @@ This module is provided as-is for educational and administrative purposes.
 
 ## Version History
 
+- **v1.3.6**: Comprehensive Documentation Enhancement
+  - **Enhanced README.md**: Complete persistence mode guide with service monitoring commands
+  - **Quick Reference Section**: Easy-access commands for persistence mode operations
+  - **Real-World Examples**: Enterprise deployment scenarios and expected outputs
+  - **Multi-User Session Testing**: Cross-user session monitoring and control examples
+  - **Comprehensive Troubleshooting**: Detailed persistence mode troubleshooting procedures
+  - **Production Deployment Guide**: File structure examples and monitoring best practices
+  - **No Code Changes**: Pure documentation enhancement to make v1.3.5 features more accessible
 - **v1.3.5**: Production-Ready Persistence with Enhanced Reliability
   - **CRITICAL FIX**: Resolved parameter scoping issue where dot-sourcing NetTrace-ServiceRunner.ps1 overwrote function parameters
   - **Enhanced Service State Management**: Robust NSSM service state checking with automatic recovery from PAUSED states

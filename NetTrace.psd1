@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.5'
+    ModuleVersion = '1.3.6'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -93,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.3.5: FINAL PARAMETER SCOPE FIX - Fixed the true root cause where dot-sourcing NetTrace-ServiceRunner.ps1 overwrote function parameters due to conflicting param blocks. Added parameter save/restore mechanism around dot-sourcing to preserve function parameters. This resolves the persistent "Path parameter is empty" error that occurred after service runner import. The issue was that ServiceRunner script has its own $Path, $MaxFiles parameters which overwrote the function parameters during dot-sourcing. Now parameters are safely preserved and service configuration works correctly.'
+            ReleaseNotes = 'v1.3.6: COMPREHENSIVE DOCUMENTATION UPDATE - Enhanced README.md with complete persistence mode guide, service monitoring commands, troubleshooting procedures, and real-world enterprise examples. Added Quick Reference section, multi-user session testing examples, production deployment scenarios, and comprehensive version history. No code changes - this is a documentation enhancement release that makes NetTrace v1.3.5 enterprise features more accessible to users. Includes detailed NSSM service monitoring, cross-user session examples, and complete troubleshooting guide.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()
