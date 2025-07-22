@@ -11,7 +11,7 @@
 
 .NOTES
     File Name      : NetTrace.psm1
-    Version        : 1.3.2
+    Version        : 1.3.3
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
@@ -574,11 +574,30 @@ function Start-NetTraceServicePersistence {
                 throw "Service is already running"
             }
 
-            # Configure the service - FIXED: Direct configuration creation instead of relying on function call
+            # Configure the service - ENHANCED: Direct configuration creation with parameter validation
             $serviceStateDir = "$env:ProgramData\NetTrace"
             if (!(Test-Path $serviceStateDir)) {
                 New-Item -Path $serviceStateDir -ItemType Directory -Force | Out-Null
             }
+
+            # CRITICAL FIX: Validate parameters are not empty before creating config
+            if ([string]::IsNullOrWhiteSpace($Path)) {
+                throw "Path parameter is empty. This indicates a parameter passing issue."
+            }
+            if ($MaxFiles -eq 0) {
+                throw "MaxFiles parameter is zero. This indicates a parameter passing issue."
+            }
+            if ($MaxSizeMB -eq 0) {
+                throw "MaxSizeMB parameter is zero. This indicates a parameter passing issue."
+            }
+
+            # Debug logging for parameter validation
+            Write-Information "Creating service configuration with parameters:" -InformationAction Continue
+            Write-Information "  Path: '$Path'" -InformationAction Continue
+            Write-Information "  MaxFiles: $MaxFiles" -InformationAction Continue
+            Write-Information "  MaxSizeMB: $MaxSizeMB" -InformationAction Continue
+            Write-Information "  LogOutput: $LogOutput" -InformationAction Continue
+            Write-Information "  EnableLogging: $EnableLogging" -InformationAction Continue
 
             $config = @{
                 Path = $Path
@@ -587,13 +606,13 @@ function Start-NetTraceServicePersistence {
                 LogOutput = [bool]$LogOutput
                 EnableLogging = [bool]$EnableLogging
                 StartTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-                ServiceVersion = "1.3.2"
+                ServiceVersion = "1.3.3"
             }
 
             $serviceConfigFile = "$serviceStateDir\service_config.json"
             try {
                 $config | ConvertTo-Json -Depth 10 | Out-File -FilePath $serviceConfigFile -Encoding UTF8
-                Write-Information "Service configuration created successfully" -InformationAction Continue
+                Write-Information "Service configuration created successfully with validated parameters" -InformationAction Continue
             } catch {
                 throw "Failed to save service configuration: $($_.Exception.Message)"
             }

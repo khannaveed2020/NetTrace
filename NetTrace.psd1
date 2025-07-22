@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.2'
+    ModuleVersion = '1.3.3'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -93,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.3.2: COMPLETE USER EXPERIENCE FIX - Fixed critical boolean parameter conversion bug that caused SERVICE_PAUSED state. Switch parameters (LogOutput, EnableLogging) now properly convert to boolean values instead of PowerShell objects. This resolves the final configuration issue where service would pause due to parameter type conversion errors. NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence $true now works perfectly with complete automation and no manual intervention required.'
+            ReleaseNotes = 'v1.3.3: COMPREHENSIVE RELIABILITY FIX - Added parameter validation to prevent empty configuration values and enhanced NSSM service state management to eliminate start/pause cycles. Includes robust service status checking, automatic paused service recovery, detailed error diagnostics, and race condition handling. Prevents UX issues with already running services and provides clear feedback for service state transitions. This version ensures reliable one-command operation without manual intervention or service state conflicts.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

@@ -47,7 +47,7 @@
 
 .NOTES
     File Name      : NetTrace-ServiceRunner.ps1
-    Version        : 1.3.1
+    Version        : 1.3.3
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
@@ -492,12 +492,37 @@ function Start-WindowsService {
                 throw "Service script not found: $ServiceScript"
             }
 
-            # Start service
+            # ENHANCED: Robust service state management
+            $currentStatus = & $nssm status $ServiceName 2>&1
+            Write-Information "Current service status: $currentStatus" -InformationAction Continue
+
+            if ($currentStatus -eq "SERVICE_RUNNING") {
+                Write-Information "Service is already running successfully" -InformationAction Continue
+                return $true
+            } elseif ($currentStatus -eq "SERVICE_PAUSED") {
+                Write-Information "Service is paused, stopping and restarting..." -InformationAction Continue
+                & $nssm stop $ServiceName 2>&1 | Out-Null
+                Start-Sleep -Seconds 2
+            } elseif ($currentStatus -eq "SERVICE_STOPPED") {
+                Write-Information "Service is stopped, ready to start..." -InformationAction Continue
+            } else {
+                Write-Warning "Service in unexpected state: $currentStatus. Attempting to stop first..."
+                & $nssm stop $ServiceName 2>&1 | Out-Null
+                Start-Sleep -Seconds 2
+            }
+
+            # Start service with retry logic
             if ($nssm) {
                 Write-Information "Starting service with NSSM..." -InformationAction Continue
                 $startResult = & $nssm start $ServiceName 2>&1
                 if ($LASTEXITCODE -ne 0) {
-                    throw "NSSM start failed: $startResult"
+                    # Check if it's already running (common race condition)
+                    $statusAfterStart = & $nssm status $ServiceName 2>&1
+                    if ($statusAfterStart -eq "SERVICE_RUNNING") {
+                        Write-Information "Service started successfully (was already running)" -InformationAction Continue
+                    } else {
+                        throw "NSSM start failed: $startResult (Status: $statusAfterStart)"
+                    }
                 }
             } else {
                 Write-Information "Starting service with standard Windows service controls..." -InformationAction Continue
@@ -542,6 +567,18 @@ function Start-WindowsService {
                         if ($nssm) {
                             $nssmStatus = & $nssm status $ServiceName 2>&1
                             Write-Information "NSSM status: $nssmStatus" -InformationAction Continue
+                        }
+
+                        # ENHANCED: Show recent service errors to help diagnosis
+                        $serviceLogFile = "$env:ProgramData\NetTrace\service.log"
+                        if (Test-Path $serviceLogFile) {
+                            Write-Information "Recent service errors:" -InformationAction Continue
+                            $recentErrors = Get-Content $serviceLogFile -Tail 10 | Where-Object { $_ -match "\[ERROR\]" }
+                            if ($recentErrors) {
+                                $recentErrors | ForEach-Object { Write-Warning "  $_" }
+                            } else {
+                                Write-Information "  No recent errors in service log" -InformationAction Continue
+                            }
                         }
                         
                         # Check service logs
