@@ -11,7 +11,7 @@
 
 .NOTES
     File Name      : NetTrace.psm1
-    Version        : 1.3.3
+    Version        : 1.3.4
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
@@ -210,8 +210,9 @@ function NetTrace {
 
         # Determine which persistence mode to use
         if ($Persistence) {
-            # Use service-based persistence for true persistence
-            Start-NetTraceServicePersistence -Path $Path -MaxFiles $File -MaxSizeMB $FileSize -LogOutput:$LogNetshOutput -EnableLogging:$Log
+            # CRITICAL FIX: Correct parameter mapping and type conversion
+            Write-Information "DEBUG: Calling Start-NetTraceServicePersistence with Path='$Path', File=$File, FileSize=$FileSize, LogNetshOutput=$LogNetshOutput, Log=$Log" -InformationAction Continue
+            Start-NetTraceServicePersistence -Path $Path -MaxFiles $File -MaxSizeMB $FileSize -LogOutput ([bool]$LogNetshOutput) -EnableLogging ([bool]$Log)
         } else {
             # Use job-based approach for non-persistent traces
             Start-NetTraceCapture -Path $Path -MaxFiles $File -MaxSizeMB $FileSize -LogOutput:$LogNetshOutput -EnableLogging:$Log -Persistence:$Persistence
@@ -606,7 +607,7 @@ function Start-NetTraceServicePersistence {
                 LogOutput = [bool]$LogOutput
                 EnableLogging = [bool]$EnableLogging
                 StartTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-                ServiceVersion = "1.3.3"
+                ServiceVersion = "1.3.4"
             }
 
             $serviceConfigFile = "$serviceStateDir\service_config.json"
