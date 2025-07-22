@@ -8,6 +8,12 @@
 .DESCRIPTION
     This script provides management functionality for the NetTrace Windows Service using NSSM (Non-Sucking Service Manager).
     It handles service installation, configuration, starting, stopping, and status monitoring for true Windows Service persistence.
+    
+    Version 1.3.0 includes critical fixes:
+    - Fixed NSSM installation to use persistent location instead of temp directory
+    - Simplified service configuration using batch file wrapper
+    - Enhanced service validation and error handling
+    - Improved parameter passing to avoid complex escaping issues
 
 .PARAMETER Install
     Installs the NetTrace Windows Service using NSSM
@@ -41,7 +47,7 @@
 
 .NOTES
     File Name      : NetTrace-ServiceRunner.ps1
-    Version        : 1.2.8
+    Version        : 1.3.0
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
@@ -88,8 +94,6 @@ param(
     [Parameter(ParameterSetName = 'Stop', Mandatory = $true)]
     [switch]$Stop,
 
-
-
     [Parameter(ParameterSetName = 'Start', Mandatory = $true)]
     [string]$Path,
 
@@ -124,13 +128,13 @@ if (!(Test-Path $ServiceScript)) {
 # Import service functions
 . $ServiceScript
 
-# NSSM management functions
+# NSSM management functions - FIXED VERSION
 function Get-NSSM {
     <#
     .SYNOPSIS
-        Gets NSSM for service management - checks system path first, downloads if needed
+        Gets NSSM for service management with persistent storage
     .DESCRIPTION
-        Checks if NSSM is available in system PATH first, then downloads if not found
+        Checks if NSSM is available in system PATH first, then downloads to persistent location if needed
     #>
 
     # First check if NSSM is available in system PATH (user may have installed it)
@@ -140,17 +144,17 @@ function Get-NSSM {
         return $systemNssm.Source
     }
 
-    # Check local temp directory
-    $nssmDir = "$env:TEMP\NetTrace-NSSM"
+    # FIXED: Use persistent location instead of temp directory
+    $nssmDir = "$env:ProgramData\NetTrace\NSSM"
     $nssmPath = "$nssmDir\nssm.exe"
 
-    # Check if NSSM is already available in temp
+    # Check if NSSM is already available in persistent location
     if (Test-Path $nssmPath) {
         Write-Information "NSSM found at: $nssmPath" -InformationAction Continue
         return $nssmPath
     }
 
-    Write-Information "Downloading NSSM (Non-Sucking Service Manager)..." -InformationAction Continue
+    Write-Information "Downloading NSSM (Non-Sucking Service Manager) to persistent location..." -InformationAction Continue
 
     try {
         # Create directory if it doesn't exist
@@ -190,7 +194,7 @@ function Get-NSSM {
         Remove-Item $nssmZip -Force -ErrorAction SilentlyContinue
 
         if (Test-Path $nssmPath) {
-            Write-Information "NSSM downloaded successfully" -InformationAction Continue
+            Write-Information "NSSM downloaded successfully to persistent location: $nssmPath" -InformationAction Continue
             return $nssmPath
         } else {
             throw "NSSM download failed - file not found after extraction"
@@ -203,12 +207,59 @@ function Get-NSSM {
     }
 }
 
+function New-ServiceWrapper {
+    <#
+    .SYNOPSIS
+        Creates a batch file wrapper for the PowerShell service script
+    .DESCRIPTION
+        Creates a simple batch file to avoid complex PowerShell parameter escaping issues with NSSM
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [string]$ServiceScriptPath,
+        [string]$WrapperPath
+    )
+
+    if ($PSCmdlet.ShouldProcess($WrapperPath, "Create service wrapper batch file")) {
+        try {
+            $batchContent = @"
+@echo off
+REM NetTrace Service Wrapper
+REM This batch file starts the NetTrace PowerShell service script
+REM Created automatically by NetTrace-ServiceRunner.ps1
+
+REM Change to script directory to ensure proper module loading
+cd /d "$ScriptDir"
+
+REM Start PowerShell with the service script
+powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "$ServiceScriptPath" -ServiceMode
+
+REM Exit with the same code as PowerShell
+exit /b %ERRORLEVEL%
+"@
+
+            $batchContent | Out-File -FilePath $WrapperPath -Encoding ASCII -Force
+            
+            if (Test-Path $WrapperPath) {
+                Write-Information "Service wrapper created: $WrapperPath" -InformationAction Continue
+                return $true
+            } else {
+                throw "Failed to create wrapper file"
+            }
+        } catch {
+            Write-Error "Failed to create service wrapper: $($_.Exception.Message)"
+            return $false
+        }
+    }
+    return $false
+}
+
 function Install-NetTraceWindowsService {
     <#
     .SYNOPSIS
-        Installs NetTrace as a Windows Service using NSSM
+        Installs NetTrace as a Windows Service using NSSM with simplified configuration
     .DESCRIPTION
-        Uses NSSM to install NetTrace as a proper Windows Service for true persistence
+        Uses NSSM to install NetTrace as a proper Windows Service with batch file wrapper for reliability
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param()
@@ -245,85 +296,31 @@ function Install-NetTraceWindowsService {
                 }
             }
 
-            # Install service with NSSM
-            $serviceScript = $ServiceScript
-            Write-Information "Installing service with script: $serviceScript" -InformationAction Continue
+            # FIXED: Create simplified batch file wrapper instead of complex parameter escaping
+            $ServiceStateDir = "$env:ProgramData\NetTrace"
+            if (!(Test-Path $ServiceStateDir)) {
+                New-Item -Path $ServiceStateDir -ItemType Directory -Force | Out-Null
+            }
 
-            # Install the service
-            $installResult = & $nssm install $ServiceName powershell.exe 2>&1
+            $wrapperBatch = "$ServiceStateDir\NetTrace-Service.bat"
+            $serviceScriptPath = (Get-Item $ServiceScript).FullName
+            
+            Write-Information "Creating service wrapper batch file..." -InformationAction Continue
+            $wrapperSuccess = New-ServiceWrapper -ServiceScriptPath $serviceScriptPath -WrapperPath $wrapperBatch
+            if (-not $wrapperSuccess) {
+                throw "Failed to create service wrapper"
+            }
+
+            # Install service with NSSM using the batch file wrapper
+            Write-Information "Installing service with wrapper: $wrapperBatch" -InformationAction Continue
+
+            $installResult = & $nssm install $ServiceName $wrapperBatch 2>&1
             if ($LASTEXITCODE -ne 0) {
                 throw "NSSM install failed: $installResult"
             }
 
-            # Configure service parameters - use NetTrace-Service.ps1 directly with ServiceMode
-            $serviceScriptPath = (Get-Item $ServiceScript).FullName
-            
-            # Configure service to run NetTrace-Service.ps1 directly with -ServiceMode
-            # Try multiple parameter setting approaches for NSSM
-            Write-Information "Setting NSSM parameters..." -InformationAction Continue
-            
-            # Method 1: Try with proper NSSM escaping
-            $paramResult1 = & $nssm set $ServiceName AppParameters "`"-ExecutionPolicy`" `"Bypass`" `"-File`" `"`"$serviceScriptPath`"`" `"-ServiceMode`"" 2>&1
-            if ($LASTEXITCODE -ne 0) {
-                Write-Information "Method 1 failed ($($paramResult1)), trying method 2..." -InformationAction Continue
-                # Method 2: Try with simpler escaping
-                $paramResult2 = & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File \`"$serviceScriptPath\`" -ServiceMode" 2>&1
-                if ($LASTEXITCODE -ne 0) {
-                    Write-Information "Method 2 failed ($($paramResult2)), trying method 3..." -InformationAction Continue
-                    # Method 3: Try with double quotes around entire parameter string
-                    $paramResult3 = & $nssm set $ServiceName AppParameters "`"-ExecutionPolicy Bypass -File \`"$serviceScriptPath\`" -ServiceMode`"" 2>&1
-                    if ($LASTEXITCODE -ne 0) {
-                        Write-Warning "All NSSM parameter setting methods failed. Last error: $paramResult3"
-                    }
-                }
-            }
+            # Configure basic service settings
             & $nssm set $ServiceName AppDirectory "$ScriptDir"
-
-            # Verify the configuration was set correctly
-            $currentParams = & $nssm get $ServiceName AppParameters
-            Write-Information "Service configured with parameters: $currentParams" -InformationAction Continue
-            
-            # Verify the service script path exists - improved path parsing
-            # NSSM may return parameters differently, so try multiple parsing methods
-            $configuredPath = $null
-            
-            # Method 1: Try standard quoted path parsing
-            if ($currentParams -match '-File\s+"([^"]+)"') {
-                $configuredPath = $matches[1]
-            }
-            # Method 2: Try parsing without quotes (in case NSSM strips them) - handle spaces in path
-            elseif ($currentParams -match '-File\s+(.+\.ps1)(?:\s+-\w+|$)') {
-                $configuredPath = $matches[1].Trim()
-            }
-            # Method 3: Try parsing with different quote styles
-            elseif ($currentParams -match "-File\s+'([^']+)'") {
-                $configuredPath = $matches[1]
-            }
-            
-            if ($configuredPath) {
-                if (-not (Test-Path $configuredPath)) {
-                    Write-Warning "Configured service path does not exist: $configuredPath"
-                    Write-Warning "Expected path should be: $serviceScriptPath"
-                    # Try to fix the configuration if the expected path exists
-                    if (Test-Path $serviceScriptPath) {
-                        Write-Information "Attempting to fix service configuration..." -InformationAction Continue
-                        # Try the same multi-method approach for fixing
-                        $fixResult1 = & $nssm set $ServiceName AppParameters "`"-ExecutionPolicy`" `"Bypass`" `"-File`" `"`"$serviceScriptPath`"`" `"-ServiceMode`"" 2>&1
-                        if ($LASTEXITCODE -ne 0) {
-                            Write-Information "Fix method 1 failed ($($fixResult1)), trying method 2..." -InformationAction Continue
-                            $fixResult2 = & $nssm set $ServiceName AppParameters "-ExecutionPolicy Bypass -File \`"$serviceScriptPath\`" -ServiceMode" 2>&1
-                            if ($LASTEXITCODE -ne 0) {
-                                Write-Warning "Service configuration fix failed. Error: $fixResult2"
-                            }
-                        }
-                    }
-                } else {
-                    Write-Information "Service path verified: $configuredPath" -InformationAction Continue
-                }
-            } else {
-                Write-Warning "Could not parse service configuration parameters: $currentParams"
-                Write-Warning "Raw parameters received from NSSM: '$currentParams'"
-            }
             & $nssm set $ServiceName DisplayName "$ServiceDisplayName"
             & $nssm set $ServiceName Description "$ServiceDescription"
             & $nssm set $ServiceName Start SERVICE_AUTO_START
@@ -352,11 +349,30 @@ function Install-NetTraceWindowsService {
             & $nssm set $ServiceName AppStdout "$logDir\service_stdout.log"
             & $nssm set $ServiceName AppStderr "$logDir\service_stderr.log"
 
+            # ENHANCED: Validate service installation
+            Write-Information "Validating service installation..." -InformationAction Continue
+            $installedService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+            if (-not $installedService) {
+                throw "Service installation validation failed - service not found"
+            }
+
+            # Validate wrapper file exists and is accessible
+            if (-not (Test-Path $wrapperBatch)) {
+                throw "Service wrapper validation failed - wrapper file not found"
+            }
+
+            # Validate service script exists and is accessible
+            if (-not (Test-Path $serviceScriptPath)) {
+                throw "Service script validation failed - script file not found"
+            }
+
             Write-Information "NetTrace Windows Service installed successfully" -InformationAction Continue
             Write-Information "  Service Name: $ServiceName" -InformationAction Continue
             Write-Information "  Display Name: $ServiceDisplayName" -InformationAction Continue
             Write-Information "  Startup Type: Automatic" -InformationAction Continue
             Write-Information "  Service Type: Windows Service (NSSM)" -InformationAction Continue
+            Write-Information "  Wrapper: $wrapperBatch" -InformationAction Continue
+            Write-Information "  Script: $serviceScriptPath" -InformationAction Continue
             Write-Information "" -InformationAction Continue
             Write-Information "Service is ready to use. Use 'NetTrace-ServiceRunner.ps1 -Start' to start the service." -InformationAction Continue
 
@@ -374,7 +390,7 @@ function Uninstall-NetTraceWindowsService {
     .SYNOPSIS
         Uninstalls the NetTrace Windows Service
     .DESCRIPTION
-        Removes the NetTrace Windows Service using NSSM
+        Removes the NetTrace Windows Service using NSSM and cleans up all related files
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param()
@@ -419,7 +435,7 @@ function Uninstall-NetTraceWindowsService {
                 Write-Information "NetTrace Windows Service is not installed" -InformationAction Continue
             }
 
-            # Clean up service state directory
+            # Clean up service state directory and wrapper
             $ServiceStateDir = "$env:ProgramData\NetTrace"
             if (Test-Path $ServiceStateDir) {
                 Write-Information "Cleaning up service state directory..." -InformationAction Continue
@@ -438,9 +454,9 @@ function Uninstall-NetTraceWindowsService {
 function Start-WindowsService {
     <#
     .SYNOPSIS
-        Starts the NetTrace Windows Service
+        Starts the NetTrace Windows Service with enhanced monitoring
     .DESCRIPTION
-        Starts the Windows Service using NSSM or standard service controls
+        Starts the Windows Service using NSSM or standard service controls with detailed status monitoring
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param()
@@ -456,6 +472,26 @@ function Start-WindowsService {
                 throw "NetTrace Windows Service is not installed. Use -Install first."
             }
 
+            # ENHANCED: Pre-start validation
+            Write-Information "Performing pre-start validation..." -InformationAction Continue
+            
+            # Check if wrapper file exists
+            $wrapperBatch = "$env:ProgramData\NetTrace\NetTrace-Service.bat"
+            if (-not (Test-Path $wrapperBatch)) {
+                Write-Warning "Service wrapper not found at: $wrapperBatch"
+                Write-Information "Attempting to recreate wrapper..." -InformationAction Continue
+                $serviceScriptPath = (Get-Item $ServiceScript).FullName
+                $wrapperSuccess = New-ServiceWrapper -ServiceScriptPath $serviceScriptPath -WrapperPath $wrapperBatch
+                if (-not $wrapperSuccess) {
+                    throw "Failed to recreate service wrapper"
+                }
+            }
+
+            # Check if service script exists
+            if (-not (Test-Path $ServiceScript)) {
+                throw "Service script not found: $ServiceScript"
+            }
+
             # Start service
             if ($nssm) {
                 Write-Information "Starting service with NSSM..." -InformationAction Continue
@@ -468,8 +504,8 @@ function Start-WindowsService {
                 Start-Service -Name $ServiceName -ErrorAction Stop
             }
 
-            # Wait for service to start and check multiple times
-            $maxWaitTime = 15
+            # ENHANCED: Wait for service to start with detailed monitoring
+            $maxWaitTime = 20  # Increased wait time
             $checkInterval = 2
             $elapsed = 0
             
@@ -485,12 +521,22 @@ function Start-WindowsService {
                     
                     if ($service.Status -eq 'Running') {
                         Write-Information "NetTrace Windows Service started successfully" -InformationAction Continue
+                        
+                        # Additional validation - check if service is actually working
+                        Start-Sleep -Seconds 3
+                        $serviceStatus = Get-ServiceStatus
+                        if ($serviceStatus.IsRunning) {
+                            Write-Information "Service validation successful - NetTrace monitoring is active" -InformationAction Continue
+                        } else {
+                            Write-Warning "Service started but NetTrace monitoring may not be active yet. Check logs if issues persist."
+                        }
+                        
                         return $true
                     }
                     elseif ($service.Status -eq 'Paused') {
                         # Service is paused - this usually indicates a script execution issue
                         Write-Warning "Service is in PAUSED state - this typically indicates a PowerShell script execution issue"
-                        Write-Warning "Check Windows Event Logs for more details"
+                        Write-Warning "Check Windows Event Logs and service logs for more details"
                         
                         # Try to get more details from NSSM
                         if ($nssm) {
@@ -498,11 +544,23 @@ function Start-WindowsService {
                             Write-Information "NSSM status: $nssmStatus" -InformationAction Continue
                         }
                         
-                        throw "Service started but is in PAUSED state. This usually indicates the PowerShell script failed to execute properly."
+                        # Check service logs
+                        $logDir = "$env:ProgramData\NetTrace\service_logs"
+                        $stderrLog = "$logDir\service_stderr.log"
+                        
+                        if (Test-Path $stderrLog) {
+                            $errorContent = Get-Content $stderrLog -Tail 10 -ErrorAction SilentlyContinue
+                            if ($errorContent) {
+                                Write-Information "Recent service errors:" -InformationAction Continue
+                                $errorContent | ForEach-Object { Write-Information "  $_" -InformationAction Continue }
+                            }
+                        }
+                        
+                        throw "Service started but is in PAUSED state. Check the service logs and Windows Event Logs for detailed error information."
                     }
                     elseif ($service.Status -eq 'Stopped') {
                         Write-Warning "Service stopped unexpectedly"
-                        throw "Service stopped after starting - check Windows Event Logs for errors"
+                        throw "Service stopped after starting - check Windows Event Logs and service logs for errors"
                     }
                 }
             }
@@ -517,6 +575,181 @@ function Start-WindowsService {
 
         } catch {
             Write-Error "Failed to start NetTrace Windows Service: $($_.Exception.Message)"
+            return $false
+        }
+    }
+}
+
+function Stop-WindowsService {
+    <#
+    .SYNOPSIS
+        Stops the NetTrace Windows Service
+    .DESCRIPTION
+        Stops the Windows Service using NSSM or standard service controls
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("NetTrace Windows Service", "Stop")) {
+        try {
+            # Get NSSM
+            $nssm = Get-NSSM
+
+            # Check if service exists
+            $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+            if (-not $service) {
+                Write-Information "NetTrace Windows Service is not installed" -InformationAction Continue
+                return $true
+            }
+
+            # Stop service
+            if ($service.Status -eq 'Running') {
+                # Signal service to stop gracefully first
+                Stop-NetTraceService
+
+                Start-Sleep -Seconds 2
+
+                # Use NSSM or standard service stop
+                if ($nssm) {
+                    $stopResult = & $nssm stop $ServiceName 2>&1
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Warning "NSSM stop returned: $stopResult"
+                    }
+                } else {
+                    Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
+                }
+
+                # Wait for service to stop
+                Start-Sleep -Seconds 3
+
+                # Verify service is stopped
+                $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+                if ($service -and $service.Status -eq 'Stopped') {
+                    Write-Information "NetTrace Windows Service stopped successfully" -InformationAction Continue
+                    return $true
+                } else {
+                    Write-Warning "Service may not have stopped cleanly"
+                    return $false
+                }
+            } else {
+                Write-Information "NetTrace Windows Service is already stopped" -InformationAction Continue
+                return $true
+            }
+
+        } catch {
+            Write-Error "Failed to stop NetTrace Windows Service: $($_.Exception.Message)"
+            return $false
+        }
+    }
+}
+
+function Start-NetTraceServiceRunner {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [string]$TracePath,
+        [int]$MaxFiles,
+        [int]$MaxSizeMB,
+        [bool]$LogOutput,
+        [bool]$EnableLogging
+    )
+
+    if ($PSCmdlet.ShouldProcess("NetTrace Windows Service", "Start monitoring")) {
+        Write-Information "Starting NetTrace Windows Service..." -InformationAction Continue
+
+        try {
+            # Validate parameters
+            if ($MaxFiles -le 0) {
+                throw "MaxFiles parameter must be a positive integer"
+            }
+            if ($MaxSizeMB -le 0) {
+                throw "MaxSizeMB parameter must be a positive integer"
+            }
+            if ($MaxSizeMB -lt 10) {
+                throw "MaxSizeMB must be at least 10 MB. Netsh trace has a minimum file size of 10MB."
+            }
+            if ([string]::IsNullOrWhiteSpace($TracePath)) {
+                throw "Path parameter is required"
+            }
+
+            # Ensure directory exists
+            if (!(Test-Path $TracePath)) {
+                New-Item -Path $TracePath -ItemType Directory -Force | Out-Null
+                Write-Information "Created directory: $TracePath" -InformationAction Continue
+            }
+
+            # Check if service is installed
+            $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+            if (-not $service) {
+                Write-Information "NetTrace Windows Service is not installed. Installing automatically..." -InformationAction Continue
+                $installSuccess = Install-NetTraceWindowsService
+                if (-not $installSuccess) {
+                    throw "Failed to install NetTrace Windows Service"
+                }
+            }
+
+            # Check if service is already running
+            $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+            if ($service -and $service.Status -eq 'Running') {
+                Write-Warning "NetTrace Windows Service is already running. Use -Stop first to stop the current session."
+                return $false
+            }
+
+            # Configure the service
+            $configSuccess = Start-NetTraceService -Path $TracePath -MaxFiles $MaxFiles -MaxSizeMB $MaxSizeMB -LogOutput $LogOutput -EnableLogging $EnableLogging
+            if (-not $configSuccess) {
+                throw "Failed to configure NetTrace service"
+            }
+
+            # Start the Windows Service
+            $startSuccess = Start-WindowsService
+            if (-not $startSuccess) {
+                throw "Failed to start NetTrace Windows Service"
+            }
+
+            Write-Information "NetTrace Windows Service started successfully" -InformationAction Continue
+            Write-Information "  Path: $TracePath" -InformationAction Continue
+            Write-Information "  Max Files: $MaxFiles" -InformationAction Continue
+            Write-Information "  Max Size: $MaxSizeMB MB" -InformationAction Continue
+            Write-Information "  Logging: $(if ($EnableLogging) { 'Enabled' } else { 'Disabled' })" -InformationAction Continue
+            Write-Information "  NetSH Output: $(if ($LogOutput) { 'Enabled' } else { 'Disabled' })" -InformationAction Continue
+            Write-Information "" -InformationAction Continue
+            Write-Information "Service is now running as a true Windows Service with complete persistence." -InformationAction Continue
+            Write-Information "The service will survive user logouts and system reboots." -InformationAction Continue
+            Write-Information "Use 'NetTrace -Stop' or 'NetTrace-ServiceRunner.ps1 -Stop' to stop the service." -InformationAction Continue
+
+            if ($EnableLogging) {
+                Write-Information "Monitor progress with: Get-Content '$TracePath\NetTrace_*.log' -Wait" -InformationAction Continue
+            }
+
+            return $true
+
+        } catch {
+            Write-Error "Error starting NetTrace Windows Service: $($_.Exception.Message)"
+            return $false
+        }
+    }
+}
+
+function Stop-NetTraceServiceRunner {
+    [CmdletBinding(SupportsShouldProcess)]
+    param()
+
+    if ($PSCmdlet.ShouldProcess("NetTrace Windows Service", "Stop monitoring")) {
+        Write-Information "Stopping NetTrace Windows Service..." -InformationAction Continue
+
+        try {
+            # Stop the Windows Service
+            $stopSuccess = Stop-WindowsService
+            if ($stopSuccess) {
+                Write-Information "NetTrace Windows Service stopped successfully" -InformationAction Continue
+                return $true
+            } else {
+                Write-Warning "NetTrace Windows Service may not have stopped cleanly"
+                return $false
+            }
+
+        } catch {
+            Write-Error "Error stopping NetTrace Windows Service: $($_.Exception.Message)"
             return $false
         }
     }
@@ -758,6 +991,21 @@ function Show-NetTraceServiceStatus {
             Write-Information "  Service recovery configured - automatic restart on failure" -InformationAction Continue
         }
 
+        # ENHANCED: Show validation information
+        Write-Information "" -InformationAction Continue
+        Write-Information "Validation Status:" -InformationAction Continue
+        
+        $wrapperBatch = "$env:ProgramData\NetTrace\NetTrace-Service.bat"
+        $wrapperStatus = if (Test-Path $wrapperBatch) { "Found" } else { "Missing" }
+        Write-Information "  Service Wrapper: $wrapperStatus" -InformationAction Continue
+        
+        $serviceScriptStatus = if (Test-Path $ServiceScript) { "Found" } else { "Missing" }
+        Write-Information "  Service Script: $serviceScriptStatus" -InformationAction Continue
+        
+        $nssmPath = Get-NSSM
+        $nssmStatus = if ($nssmPath) { "Available at $nssmPath" } else { "Not Available" }
+        Write-Information "  NSSM: $nssmStatus" -InformationAction Continue
+
         return $true
 
     } catch {
@@ -768,8 +1016,8 @@ function Show-NetTraceServiceStatus {
 
 # Main execution logic
 try {
-    Write-Information "NetTrace Service Runner v1.2.8" -InformationAction Continue
-    Write-Information "True Windows Service Implementation" -InformationAction Continue
+    Write-Information "NetTrace Service Runner v1.3.0" -InformationAction Continue
+    Write-Information "FIXED: True Windows Service Implementation with Enhanced Reliability" -InformationAction Continue
     Write-Information "===============================" -InformationAction Continue
     Write-Information "" -InformationAction Continue
 

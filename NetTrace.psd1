@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.2.16'
+    ModuleVersion = '1.3.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -93,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.2.15: CRITICAL SERVICE EXECUTION FIX - Removed #Requires -RunAsAdministrator directive from NetTrace-Service.ps1 that was causing SERVICE_PAUSED state when running as LocalSystem. LocalSystem is not recognized as Administrator by PowerShell requires directive even though it has admin privileges. Added comprehensive service startup monitoring with detailed status reporting and error diagnostics. Enhanced path parsing with multiple fallback methods for different NSSM parameter formats. This fixes the persistent SERVICE_PAUSED issue that prevented the Windows Service from executing properly. v1.2.14: CRITICAL PATH PARSING FIX - Fixed service path verification logic that was incorrectly parsing quoted paths with spaces. Service configuration now correctly extracts file paths from NSSM parameters using regex matching instead of space-splitting. This fixes the "Configured service path does not exist" warnings and service startup failures. v1.2.13: ARCHITECTURAL FIX - Fixed fundamental service architecture that was causing recurring path and service configuration issues. Service now correctly runs NetTrace-Service.ps1 directly instead of creating circular dependencies. Fixed NSSM path conflicts by checking system PATH first. Removed circular dependency between service runner and service script. This permanent architectural fix eliminates the recurring cached old version and path configuration problems that affected previous versions.'
+            ReleaseNotes = 'v1.3.0: COMPREHENSIVE SERVICE ARCHITECTURE FIX - Complete overhaul of NSSM service implementation with critical reliability improvements: 1) Fixed NSSM installation to use persistent location ($env:ProgramData\NetTrace\NSSM) instead of temporary directory that could be cleaned up, 2) Implemented simplified batch file wrapper approach to eliminate complex PowerShell parameter escaping issues that caused service configuration failures, 3) Enhanced service validation with comprehensive pre-start checks for wrapper files, service scripts, and NSSM availability, 4) Added detailed service startup monitoring with extended wait times and better error diagnostics, 5) Improved error handling and logging throughout the service lifecycle, 6) Added automatic wrapper recreation if missing during service start, 7) Enhanced status reporting to show validation information for all service components. This addresses the fundamental architectural issues that prevented reliable NSSM service operation and provides a robust, production-ready Windows Service implementation.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

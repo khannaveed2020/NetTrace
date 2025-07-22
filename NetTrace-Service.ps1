@@ -18,7 +18,7 @@
 
 .NOTES
     File Name      : NetTrace-Service.ps1
-    Version        : 1.2.2
+    Version        : 1.3.0
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
@@ -99,7 +99,7 @@ function Set-ServiceConfig {
             LogOutput = $LogOutput
             EnableLogging = $EnableLogging
             StartTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-            ServiceVersion = "1.2.2"
+            ServiceVersion = "1.3.0"
         }
 
         try {
@@ -449,7 +449,7 @@ Export-ModuleMember -Function Start-NetTraceService, Stop-NetTraceService, Get-S
 
 # If script is run directly without service mode, provide guidance
 if ($MyInvocation.InvocationName -eq $MyInvocation.MyCommand.Name) {
-    Write-Information "NetTrace Service Script v1.2.2" -InformationAction Continue
+    Write-Information "NetTrace Service Script v1.3.0" -InformationAction Continue
     Write-Information "This script now implements a true Windows Service using NSSM." -InformationAction Continue
     Write-Information "This script should be used through NetTrace-ServiceRunner.ps1 for proper service management." -InformationAction Continue
     Write-Information "Direct execution without -ServiceMode is not recommended." -InformationAction Continue
