@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.1'
+    ModuleVersion = '1.3.2'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -93,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.3.1: FINAL USER EXPERIENCE FIX - Critical service configuration parameter passing bug fixed. Users no longer need manual service configuration - single NetTrace command now works perfectly with automatic parameter passing to Windows Service. Enhanced NetTrace -Stop to properly handle Windows Service mode with automatic detection. Delivers true one-command operation: NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence $true works seamlessly without additional setup steps. This completes the Windows Service persistence implementation with full user experience automation.'
+            ReleaseNotes = 'v1.3.2: COMPLETE USER EXPERIENCE FIX - Fixed critical boolean parameter conversion bug that caused SERVICE_PAUSED state. Switch parameters (LogOutput, EnableLogging) now properly convert to boolean values instead of PowerShell objects. This resolves the final configuration issue where service would pause due to parameter type conversion errors. NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence $true now works perfectly with complete automation and no manual intervention required.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()
