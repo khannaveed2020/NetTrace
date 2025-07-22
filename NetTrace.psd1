@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.0'
+    ModuleVersion = '1.3.1'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -93,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.3.0: COMPREHENSIVE SERVICE ARCHITECTURE FIX - Complete overhaul of NSSM service implementation with critical reliability improvements: 1) Fixed NSSM installation to use persistent location ($env:ProgramData\NetTrace\NSSM) instead of temporary directory that could be cleaned up, 2) Implemented simplified batch file wrapper approach to eliminate complex PowerShell parameter escaping issues that caused service configuration failures, 3) Enhanced service validation with comprehensive pre-start checks for wrapper files, service scripts, and NSSM availability, 4) Added detailed service startup monitoring with extended wait times and better error diagnostics, 5) Improved error handling and logging throughout the service lifecycle, 6) Added automatic wrapper recreation if missing during service start, 7) Enhanced status reporting to show validation information for all service components. This addresses the fundamental architectural issues that prevented reliable NSSM service operation and provides a robust, production-ready Windows Service implementation.'
+            ReleaseNotes = 'v1.3.1: FINAL USER EXPERIENCE FIX - Critical service configuration parameter passing bug fixed. Users no longer need manual service configuration - single NetTrace command now works perfectly with automatic parameter passing to Windows Service. Enhanced NetTrace -Stop to properly handle Windows Service mode with automatic detection. Delivers true one-command operation: NetTrace -File 3 -FileSize 10 -Path "C:\Traces" -Persistence $true works seamlessly without additional setup steps. This completes the Windows Service persistence implementation with full user experience automation.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

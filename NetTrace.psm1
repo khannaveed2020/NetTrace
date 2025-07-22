@@ -11,7 +11,7 @@
 
 .NOTES
     File Name      : NetTrace.psm1
-    Version        : 1.3.0
+    Version        : 1.3.1
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
@@ -574,10 +574,28 @@ function Start-NetTraceServicePersistence {
                 throw "Service is already running"
             }
 
-            # Configure the service
-            $configSuccess = Start-NetTraceService -Path $Path -MaxFiles $MaxFiles -MaxSizeMB $MaxSizeMB -LogOutput $LogOutput -EnableLogging $EnableLogging
-            if (-not $configSuccess) {
-                throw "Failed to configure NetTrace service"
+            # Configure the service - FIXED: Direct configuration creation instead of relying on function call
+            $serviceStateDir = "$env:ProgramData\NetTrace"
+            if (!(Test-Path $serviceStateDir)) {
+                New-Item -Path $serviceStateDir -ItemType Directory -Force | Out-Null
+            }
+
+            $config = @{
+                Path = $Path
+                MaxFiles = $MaxFiles
+                MaxSizeMB = $MaxSizeMB
+                LogOutput = $LogOutput
+                EnableLogging = $EnableLogging
+                StartTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                ServiceVersion = "1.3.1"
+            }
+
+            $serviceConfigFile = "$serviceStateDir\service_config.json"
+            try {
+                $config | ConvertTo-Json -Depth 10 | Out-File -FilePath $serviceConfigFile -Encoding UTF8
+                Write-Information "Service configuration created successfully" -InformationAction Continue
+            } catch {
+                throw "Failed to save service configuration: $($_.Exception.Message)"
             }
 
             # Start the Windows Service

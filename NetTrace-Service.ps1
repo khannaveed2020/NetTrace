@@ -18,7 +18,7 @@
 
 .NOTES
     File Name      : NetTrace-Service.ps1
-    Version        : 1.3.0
+    Version        : 1.3.1
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
@@ -99,7 +99,7 @@ function Set-ServiceConfig {
             LogOutput = $LogOutput
             EnableLogging = $EnableLogging
             StartTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-            ServiceVersion = "1.3.0"
+            ServiceVersion = "1.3.1"
         }
 
         try {
