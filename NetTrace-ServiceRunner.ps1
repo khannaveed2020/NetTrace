@@ -9,7 +9,7 @@
     This script provides management functionality for the NetTrace Windows Service using NSSM (Non-Sucking Service Manager).
     It handles service installation, configuration, starting, stopping, and status monitoring for true Windows Service persistence.
     
-    Version 1.3.0 includes critical fixes:
+    Version 1.3.6 includes comprehensive documentation enhancements:
     - Fixed NSSM installation to use persistent location instead of temp directory
     - Simplified service configuration using batch file wrapper
     - Enhanced service validation and error handling
@@ -47,7 +47,7 @@
 
 .NOTES
     File Name      : NetTrace-ServiceRunner.ps1
-    Version        : 1.3.5
+    Version        : 1.3.6
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
