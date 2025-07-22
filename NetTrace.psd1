@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.4'
+    ModuleVersion = '1.3.5'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -93,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.3.4: CRITICAL PARAMETER PASSING FIX - Fixed the root cause of empty parameter issue where switch parameters (LogNetshOutput, Log) were not properly converted to boolean types when passed between functions. Added explicit type conversion [bool]$LogNetshOutput and [bool]$Log to ensure proper parameter passing from NetTrace function to Start-NetTraceServicePersistence function. This resolves the "Path parameter is empty" error and ensures all parameters are correctly passed to the service configuration. Single command operation now works reliably.'
+            ReleaseNotes = 'v1.3.5: FINAL PARAMETER SCOPE FIX - Fixed the true root cause where dot-sourcing NetTrace-ServiceRunner.ps1 overwrote function parameters due to conflicting param blocks. Added parameter save/restore mechanism around dot-sourcing to preserve function parameters. This resolves the persistent "Path parameter is empty" error that occurred after service runner import. The issue was that ServiceRunner script has its own $Path, $MaxFiles parameters which overwrote the function parameters during dot-sourcing. Now parameters are safely preserved and service configuration works correctly.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

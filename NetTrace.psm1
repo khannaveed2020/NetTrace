@@ -11,7 +11,7 @@
 
 .NOTES
     File Name      : NetTrace.psm1
-    Version        : 1.3.4
+    Version        : 1.3.5
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
@@ -555,8 +555,24 @@ function Start-NetTraceServicePersistence {
                 Write-Information "True Windows Service persistence: Enabled (capture will survive user session termination and system reboots)" -InformationAction Continue
             }
 
+            # CRITICAL FIX: Save parameters before dot-sourcing to prevent parameter overwrite
+            $savedPath = $Path
+            $savedMaxFiles = $MaxFiles  
+            $savedMaxSizeMB = $MaxSizeMB
+            $savedLogOutput = $LogOutput
+            $savedEnableLogging = $EnableLogging
+            
             # Import service runner functions for proper Windows Service management
             . $serviceRunnerScript
+            
+            # Restore parameters after dot-sourcing (ServiceRunner script has conflicting param block)
+            $Path = $savedPath
+            $MaxFiles = $savedMaxFiles
+            $MaxSizeMB = $savedMaxSizeMB
+            $LogOutput = $savedLogOutput
+            $EnableLogging = $savedEnableLogging
+            
+            Write-Information "AFTER dot-sourcing: Path='$Path', MaxFiles=$MaxFiles, MaxSizeMB=$MaxSizeMB" -InformationAction Continue
 
             # Check if service is installed, install if needed
             $service = Get-Service -Name "NetTraceService" -ErrorAction SilentlyContinue
@@ -607,7 +623,7 @@ function Start-NetTraceServicePersistence {
                 LogOutput = [bool]$LogOutput
                 EnableLogging = [bool]$EnableLogging
                 StartTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-                ServiceVersion = "1.3.4"
+                ServiceVersion = "1.3.5"
             }
 
             $serviceConfigFile = "$serviceStateDir\service_config.json"
