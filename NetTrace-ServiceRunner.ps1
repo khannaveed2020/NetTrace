@@ -150,11 +150,15 @@ function Get-NSSM {
 
     # Check if NSSM is already available in persistent location
     if (Test-Path $nssmPath) {
-        Write-Information "NSSM found at: $nssmPath" -InformationAction Continue
+        if ($VerbosePreference -eq 'Continue') {
+            Write-Information "NSSM found at: $nssmPath" -InformationAction Continue
+        }
         return $nssmPath
     }
 
-    Write-Information "Downloading NSSM (Non-Sucking Service Manager) to persistent location..." -InformationAction Continue
+    if ($VerbosePreference -eq 'Continue') {
+        Write-Information "Downloading NSSM (Non-Sucking Service Manager) to persistent location..." -InformationAction Continue
+    }
 
     try {
         # Create directory if it doesn't exist
@@ -194,7 +198,9 @@ function Get-NSSM {
         Remove-Item $nssmZip -Force -ErrorAction SilentlyContinue
 
         if (Test-Path $nssmPath) {
-            Write-Information "NSSM downloaded successfully to persistent location: $nssmPath" -InformationAction Continue
+            if ($VerbosePreference -eq 'Continue') {
+                Write-Information "NSSM downloaded successfully to persistent location: $nssmPath" -InformationAction Continue
+            }
             return $nssmPath
         } else {
             throw "NSSM download failed - file not found after extraction"
@@ -202,7 +208,9 @@ function Get-NSSM {
 
     } catch {
         Write-Error "Failed to download NSSM: $($_.Exception.Message)"
-        Write-Information "Manual installation: Download NSSM from https://nssm.cc/ and place nssm.exe in $nssmDir" -InformationAction Continue
+        if ($VerbosePreference -eq 'Continue') {
+            Write-Information "Manual installation: Download NSSM from https://nssm.cc/ and place nssm.exe in $nssmDir" -InformationAction Continue
+        }
         return $null
     }
 }
@@ -241,7 +249,9 @@ exit /b %ERRORLEVEL%
             $batchContent | Out-File -FilePath $WrapperPath -Encoding ASCII -Force
             
             if (Test-Path $WrapperPath) {
-                Write-Information "Service wrapper created: $WrapperPath" -InformationAction Continue
+                if ($VerbosePreference -eq 'Continue') {
+                    Write-Information "Service wrapper created: $WrapperPath" -InformationAction Continue
+                }
                 return $true
             } else {
                 throw "Failed to create wrapper file"
@@ -473,13 +483,17 @@ function Start-WindowsService {
             }
 
             # ENHANCED: Pre-start validation
-            Write-Information "Performing pre-start validation..." -InformationAction Continue
+            if ($VerbosePreference -eq 'Continue') {
+                Write-Information "Performing pre-start validation..." -InformationAction Continue
+            }
             
             # Check if wrapper file exists
             $wrapperBatch = "$env:ProgramData\NetTrace\NetTrace-Service.bat"
             if (-not (Test-Path $wrapperBatch)) {
                 Write-Warning "Service wrapper not found at: $wrapperBatch"
-                Write-Information "Attempting to recreate wrapper..." -InformationAction Continue
+                if ($VerbosePreference -eq 'Continue') {
+                    Write-Information "Attempting to recreate wrapper..." -InformationAction Continue
+                }
                 $serviceScriptPath = (Get-Item $ServiceScript).FullName
                 $wrapperSuccess = New-ServiceWrapper -ServiceScriptPath $serviceScriptPath -WrapperPath $wrapperBatch
                 if (-not $wrapperSuccess) {
@@ -494,17 +508,25 @@ function Start-WindowsService {
 
             # ENHANCED: Robust service state management
             $currentStatus = & $nssm status $ServiceName 2>&1
-            Write-Information "Current service status: $currentStatus" -InformationAction Continue
+            if ($VerbosePreference -eq 'Continue') {
+                Write-Information "Current service status: $currentStatus" -InformationAction Continue
+            }
 
             if ($currentStatus -eq "SERVICE_RUNNING") {
-                Write-Information "Service is already running successfully" -InformationAction Continue
+                if ($VerbosePreference -eq 'Continue') {
+                    Write-Information "Service is already running successfully" -InformationAction Continue
+                }
                 return $true
             } elseif ($currentStatus -eq "SERVICE_PAUSED") {
-                Write-Information "Service is paused, stopping and restarting..." -InformationAction Continue
+                if ($VerbosePreference -eq 'Continue') {
+                    Write-Information "Service is paused, stopping and restarting..." -InformationAction Continue
+                }
                 & $nssm stop $ServiceName 2>&1 | Out-Null
                 Start-Sleep -Seconds 2
             } elseif ($currentStatus -eq "SERVICE_STOPPED") {
-                Write-Information "Service is stopped, ready to start..." -InformationAction Continue
+                if ($VerbosePreference -eq 'Continue') {
+                    Write-Information "Service is stopped, ready to start..." -InformationAction Continue
+                }
             } else {
                 Write-Warning "Service in unexpected state: $currentStatus. Attempting to stop first..."
                 & $nssm stop $ServiceName 2>&1 | Out-Null
@@ -513,19 +535,25 @@ function Start-WindowsService {
 
             # Start service with retry logic
             if ($nssm) {
-                Write-Information "Starting service with NSSM..." -InformationAction Continue
+                if ($VerbosePreference -eq 'Continue') {
+                    Write-Information "Starting service with NSSM..." -InformationAction Continue
+                }
                 $startResult = & $nssm start $ServiceName 2>&1
                 if ($LASTEXITCODE -ne 0) {
                     # Check if it's already running (common race condition)
                     $statusAfterStart = & $nssm status $ServiceName 2>&1
                     if ($statusAfterStart -eq "SERVICE_RUNNING") {
-                        Write-Information "Service started successfully (was already running)" -InformationAction Continue
+                        if ($VerbosePreference -eq 'Continue') {
+                            Write-Information "Service started successfully (was already running)" -InformationAction Continue
+                        }
                     } else {
                         throw "NSSM start failed: $startResult (Status: $statusAfterStart)"
                     }
                 }
             } else {
-                Write-Information "Starting service with standard Windows service controls..." -InformationAction Continue
+                if ($VerbosePreference -eq 'Continue') {
+                    Write-Information "Starting service with standard Windows service controls..." -InformationAction Continue
+                }
                 Start-Service -Name $ServiceName -ErrorAction Stop
             }
 
@@ -534,7 +562,9 @@ function Start-WindowsService {
             $checkInterval = 2
             $elapsed = 0
             
-            Write-Information "Waiting for service to start..." -InformationAction Continue
+            if ($VerbosePreference -eq 'Continue') {
+                Write-Information "Waiting for service to start..." -InformationAction Continue
+            }
             
             while ($elapsed -lt $maxWaitTime) {
                 Start-Sleep -Seconds $checkInterval
@@ -542,16 +572,22 @@ function Start-WindowsService {
                 
                 $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
                 if ($service) {
-                    Write-Information "Service status after $elapsed seconds: $($service.Status)" -InformationAction Continue
+                    if ($VerbosePreference -eq 'Continue') {
+                        Write-Information "Service status after $elapsed seconds: $($service.Status)" -InformationAction Continue
+                    }
                     
                     if ($service.Status -eq 'Running') {
-                        Write-Information "NetTrace Windows Service started successfully" -InformationAction Continue
+                        if ($VerbosePreference -eq 'Continue') {
+                            Write-Information "NetTrace Windows Service started successfully" -InformationAction Continue
+                        }
                         
                         # Additional validation - check if service is actually working
                         Start-Sleep -Seconds 3
                         $serviceStatus = Get-ServiceStatus
                         if ($serviceStatus.IsRunning) {
-                            Write-Information "Service validation successful - NetTrace monitoring is active" -InformationAction Continue
+                            if ($VerbosePreference -eq 'Continue') {
+                                Write-Information "Service validation successful - NetTrace monitoring is active" -InformationAction Continue
+                            }
                         } else {
                             Write-Warning "Service started but NetTrace monitoring may not be active yet. Check logs if issues persist."
                         }
@@ -566,7 +602,9 @@ function Start-WindowsService {
                         # Try to get more details from NSSM
                         if ($nssm) {
                             $nssmStatus = & $nssm status $ServiceName 2>&1
-                            Write-Information "NSSM status: $nssmStatus" -InformationAction Continue
+                            if ($VerbosePreference -eq 'Continue') {
+                                Write-Information "NSSM status: $nssmStatus" -InformationAction Continue
+                            }
                         }
 
                         # ENHANCED: Show recent service errors to help diagnosis
@@ -968,87 +1006,89 @@ function Stop-NetTraceServiceRunner {
 }
 
 function Show-NetTraceServiceStatus {
-    Write-Information "NetTrace Windows Service Status" -InformationAction Continue
-    Write-Information "===============================" -InformationAction Continue
+    if ($VerbosePreference -eq 'Continue') {
+        Write-Information "NetTrace Windows Service Status" -InformationAction Continue
+        Write-Information "===============================" -InformationAction Continue
 
-    try {
-        # Check Windows Service status
-        $windowsService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
-        if ($windowsService) {
-            $serviceStatusText = "Windows Service: $($windowsService.Status)"
-            Write-Information $serviceStatusText -InformationAction Continue
-            Write-Information "Service Type: True Windows Service (NSSM)" -InformationAction Continue
-        } else {
-            Write-Information "Windows Service: Not Installed" -InformationAction Continue
-            Write-Information "Use -Install to install the service" -InformationAction Continue
-        }
-
-        # Check NetTrace service status
-        $netTraceStatus = Get-ServiceStatus
-        $netTraceStatusText = "NetTrace Service: $(if ($netTraceStatus.IsRunning) { 'Running' } else { 'Stopped' })"
-        Write-Information $netTraceStatusText -InformationAction Continue
-
-        if ($netTraceStatus.IsRunning) {
-            Write-Information "" -InformationAction Continue
-            Write-Information "Service Details:" -InformationAction Continue
-            Write-Information "  Files Created: $($netTraceStatus.FilesCreated)" -InformationAction Continue
-            Write-Information "  Files Rolled: $($netTraceStatus.FilesRolled)" -InformationAction Continue
-            Write-Information "  Current File: $($netTraceStatus.CurrentFile)" -InformationAction Continue
-            Write-Information "  Last Update: $($netTraceStatus.LastUpdate)" -InformationAction Continue
-
-            if ($netTraceStatus.ErrorMessage) {
-                Write-Information "  Error: $($netTraceStatus.ErrorMessage)" -InformationAction Continue
+        try {
+            # Check Windows Service status
+            $windowsService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+            if ($windowsService) {
+                $serviceStatusText = "Windows Service: $($windowsService.Status)"
+                Write-Information $serviceStatusText -InformationAction Continue
+                Write-Information "Service Type: True Windows Service (NSSM)" -InformationAction Continue
+            } else {
+                Write-Information "Windows Service: Not Installed" -InformationAction Continue
+                Write-Information "Use -Install to install the service" -InformationAction Continue
             }
 
-            # Show configuration
-            $config = Get-ServiceConfig
-            if ($config) {
+            # Check NetTrace service status
+            $netTraceStatus = Get-ServiceStatus
+            $netTraceStatusText = "NetTrace Service: $(if ($netTraceStatus.IsRunning) { 'Running' } else { 'Stopped' })"
+            Write-Information $netTraceStatusText -InformationAction Continue
+
+            if ($netTraceStatus.IsRunning) {
                 Write-Information "" -InformationAction Continue
-                Write-Information "Configuration:" -InformationAction Continue
-                Write-Information "  Path: $($config.Path)" -InformationAction Continue
-                Write-Information "  Max Files: $($config.MaxFiles)" -InformationAction Continue
-                Write-Information "  Max Size: $($config.MaxSizeMB) MB" -InformationAction Continue
-                Write-Information "  Logging: $(if ($config.EnableLogging) { 'Enabled' } else { 'Disabled' })" -InformationAction Continue
-                Write-Information "  NetSH Output: $(if ($config.LogOutput) { 'Enabled' } else { 'Disabled' })" -InformationAction Continue
-                Write-Information "  Started: $($config.StartTime)" -InformationAction Continue
-                Write-Information "  Service Version: $($config.ServiceVersion)" -InformationAction Continue
-            }
-        } else {
-            if ($netTraceStatus.ErrorMessage) {
-                Write-Information "Last Error: $($netTraceStatus.ErrorMessage)" -InformationAction Continue
-            }
-        }
+                Write-Information "Service Details:" -InformationAction Continue
+                Write-Information "  Files Created: $($netTraceStatus.FilesCreated)" -InformationAction Continue
+                Write-Information "  Files Rolled: $($netTraceStatus.FilesRolled)" -InformationAction Continue
+                Write-Information "  Current File: $($netTraceStatus.CurrentFile)" -InformationAction Continue
+                Write-Information "  Last Update: $($netTraceStatus.LastUpdate)" -InformationAction Continue
 
-        # Show persistence information
-        if ($windowsService -and $windowsService.Status -eq 'Running') {
+                if ($netTraceStatus.ErrorMessage) {
+                    Write-Information "  Error: $($netTraceStatus.ErrorMessage)" -InformationAction Continue
+                }
+
+                # Show configuration
+                $config = Get-ServiceConfig
+                if ($config) {
+                    Write-Information "" -InformationAction Continue
+                    Write-Information "Configuration:" -InformationAction Continue
+                    Write-Information "  Path: $($config.Path)" -InformationAction Continue
+                    Write-Information "  Max Files: $($config.MaxFiles)" -InformationAction Continue
+                    Write-Information "  Max Size: $($config.MaxSizeMB) MB" -InformationAction Continue
+                    Write-Information "  Logging: $(if ($config.EnableLogging) { 'Enabled' } else { 'Disabled' })" -InformationAction Continue
+                    Write-Information "  NetSH Output: $(if ($config.LogOutput) { 'Enabled' } else { 'Disabled' })" -InformationAction Continue
+                    Write-Information "  Started: $($config.StartTime)" -InformationAction Continue
+                    Write-Information "  Service Version: $($config.ServiceVersion)" -InformationAction Continue
+                }
+            } else {
+                if ($netTraceStatus.ErrorMessage) {
+                    Write-Information "Last Error: $($netTraceStatus.ErrorMessage)" -InformationAction Continue
+                }
+            }
+
+            # Show persistence information
+            if ($windowsService -and $windowsService.Status -eq 'Running') {
+                Write-Information "" -InformationAction Continue
+                Write-Information "Persistence Status:" -InformationAction Continue
+                Write-Information "  True Windows Service - survives user logouts" -InformationAction Continue
+                Write-Information "  Auto-start enabled - survives system reboots" -InformationAction Continue
+                Write-Information "  Service recovery configured - automatic restart on failure" -InformationAction Continue
+            }
+
+            # ENHANCED: Show validation information
             Write-Information "" -InformationAction Continue
-            Write-Information "Persistence Status:" -InformationAction Continue
-            Write-Information "  True Windows Service - survives user logouts" -InformationAction Continue
-            Write-Information "  Auto-start enabled - survives system reboots" -InformationAction Continue
-            Write-Information "  Service recovery configured - automatic restart on failure" -InformationAction Continue
+            Write-Information "Validation Status:" -InformationAction Continue
+            
+            $wrapperBatch = "$env:ProgramData\NetTrace\NetTrace-Service.bat"
+            $wrapperStatus = if (Test-Path $wrapperBatch) { "Found" } else { "Missing" }
+            Write-Information "  Service Wrapper: $wrapperStatus" -InformationAction Continue
+            
+            $serviceScriptStatus = if (Test-Path $ServiceScript) { "Found" } else { "Missing" }
+            Write-Information "  Service Script: $serviceScriptStatus" -InformationAction Continue
+            
+            $nssmPath = Get-NSSM
+            $nssmStatus = if ($nssmPath) { "Available at $nssmPath" } else { "Not Available" }
+            Write-Information "  NSSM: $nssmStatus" -InformationAction Continue
+
+        } catch {
+            Write-Error "Error retrieving NetTrace Windows Service status: $($_.Exception.Message)"
+            return $false
         }
-
-        # ENHANCED: Show validation information
-        Write-Information "" -InformationAction Continue
-        Write-Information "Validation Status:" -InformationAction Continue
-        
-        $wrapperBatch = "$env:ProgramData\NetTrace\NetTrace-Service.bat"
-        $wrapperStatus = if (Test-Path $wrapperBatch) { "Found" } else { "Missing" }
-        Write-Information "  Service Wrapper: $wrapperStatus" -InformationAction Continue
-        
-        $serviceScriptStatus = if (Test-Path $ServiceScript) { "Found" } else { "Missing" }
-        Write-Information "  Service Script: $serviceScriptStatus" -InformationAction Continue
-        
-        $nssmPath = Get-NSSM
-        $nssmStatus = if ($nssmPath) { "Available at $nssmPath" } else { "Not Available" }
-        Write-Information "  NSSM: $nssmStatus" -InformationAction Continue
-
-        return $true
-
-    } catch {
-        Write-Error "Error retrieving NetTrace Windows Service status: $($_.Exception.Message)"
-        return $false
     }
+    
+    return $true
 }
 
 # Main execution logic - ONLY run when script is executed directly, NOT when dot-sourced

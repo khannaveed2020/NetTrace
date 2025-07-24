@@ -449,8 +449,10 @@ Export-ModuleMember -Function Start-NetTraceService, Stop-NetTraceService, Get-S
 
 # If script is run directly without service mode, provide guidance
 if ($MyInvocation.InvocationName -eq $MyInvocation.MyCommand.Name) {
-    Write-Information "NetTrace Service Script v1.3.0" -InformationAction Continue
-    Write-Information "This script now implements a true Windows Service using NSSM." -InformationAction Continue
-    Write-Information "This script should be used through NetTrace-ServiceRunner.ps1 for proper service management." -InformationAction Continue
-    Write-Information "Direct execution without -ServiceMode is not recommended." -InformationAction Continue
+    if ($VerbosePreference -eq 'Continue') {
+        Write-Information "NetTrace Service Script v1.3.0" -InformationAction Continue
+        Write-Information "This script now implements a true Windows Service using NSSM." -InformationAction Continue
+        Write-Information "This script should be used through NetTrace-ServiceRunner.ps1 for proper service management." -InformationAction Continue
+        Write-Information "Direct execution without -ServiceMode is not recommended." -InformationAction Continue
+    }
 }
