@@ -210,7 +210,6 @@ function NetTrace {
         # Determine which persistence mode to use
         if ($Persistence) {
             # CRITICAL FIX: Correct parameter mapping and type conversion
-            Write-Information "DEBUG: Calling Start-NetTraceServicePersistence with Path='$Path', File=$File, FileSize=$FileSize, LogNetshOutput=$LogNetshOutput, Log=$Log" -InformationAction Continue
             Start-NetTraceServicePersistence -Path $Path -MaxFiles $File -MaxSizeMB $FileSize -LogOutput ([bool]$LogNetshOutput) -EnableLogging ([bool]$Log)
         } else {
             # Use job-based approach for non-persistent traces
@@ -571,8 +570,6 @@ function Start-NetTraceServicePersistence {
             $LogOutput = $savedLogOutput
             $EnableLogging = $savedEnableLogging
             
-            Write-Information "AFTER dot-sourcing: Path='$Path', MaxFiles=$MaxFiles, MaxSizeMB=$MaxSizeMB" -InformationAction Continue
-
             # Check if service is installed, install if needed
             $service = Get-Service -Name "NetTraceService" -ErrorAction SilentlyContinue
             if (-not $service) {
@@ -608,12 +605,14 @@ function Start-NetTraceServicePersistence {
             }
 
             # Debug logging for parameter validation
-            Write-Information "Creating service configuration with parameters:" -InformationAction Continue
-            Write-Information "  Path: '$Path'" -InformationAction Continue
-            Write-Information "  MaxFiles: $MaxFiles" -InformationAction Continue
-            Write-Information "  MaxSizeMB: $MaxSizeMB" -InformationAction Continue
-            Write-Information "  LogOutput: $LogOutput" -InformationAction Continue
-            Write-Information "  EnableLogging: $EnableLogging" -InformationAction Continue
+            if ($VerbosePreference -eq 'Continue') {
+                Write-Information "Creating service configuration with parameters:" -InformationAction Continue
+                Write-Information "  Path: '$Path'" -InformationAction Continue
+                Write-Information "  MaxFiles: $MaxFiles" -InformationAction Continue
+                Write-Information "  MaxSizeMB: $MaxSizeMB" -InformationAction Continue
+                Write-Information "  LogOutput: $LogOutput" -InformationAction Continue
+                Write-Information "  EnableLogging: $EnableLogging" -InformationAction Continue
+            }
 
             $config = @{
                 Path = $Path
@@ -628,7 +627,9 @@ function Start-NetTraceServicePersistence {
             $serviceConfigFile = "$serviceStateDir\service_config.json"
             try {
                 $config | ConvertTo-Json -Depth 10 | Out-File -FilePath $serviceConfigFile -Encoding UTF8
-                Write-Information "Service configuration created successfully with validated parameters" -InformationAction Continue
+                if ($VerbosePreference -eq 'Continue') {
+                    Write-Information "Service configuration created successfully with validated parameters" -InformationAction Continue
+                }
             } catch {
                 throw "Failed to save service configuration: $($_.Exception.Message)"
             }

@@ -1051,46 +1051,45 @@ function Show-NetTraceServiceStatus {
     }
 }
 
-# Main execution logic
-try {
-    Write-Information "NetTrace Service Runner v1.3.0" -InformationAction Continue
-    Write-Information "FIXED: True Windows Service Implementation with Enhanced Reliability" -InformationAction Continue
-    Write-Information "===============================" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+# Main execution logic - ONLY run when script is executed directly, NOT when dot-sourced
+if ($MyInvocation.InvocationName -eq $MyInvocation.MyCommand.Name) {
+    try {
+        switch ($PSCmdlet.ParameterSetName) {
+            'Install' {
+                if ($Install) {
+                    Install-NetTraceWindowsService | Out-Null
+                }
+            }
+            'Uninstall' {
+                if ($Uninstall) {
+                    Uninstall-NetTraceWindowsService | Out-Null
+                }
+            }
+            'Start' {
+                if ($Start) {
+                    Start-NetTraceServiceRunner -TracePath $Path -MaxFiles $MaxFiles -MaxSizeMB $MaxSizeMB -LogOutput:$LogOutput -EnableLogging:$EnableLogging | Out-Null
+                }
+            }
+            'Stop' {
+                if ($Stop) {
+                    Stop-NetTraceServiceRunner | Out-Null
+                }
+            }
+            'Status' {
+                Show-NetTraceServiceStatus | Out-Null
+            }
+            default {
+                Show-NetTraceServiceStatus | Out-Null
+            }
+        }
 
-    switch ($PSCmdlet.ParameterSetName) {
-        'Install' {
-            if ($Install) {
-                Install-NetTraceWindowsService | Out-Null
-            }
+        if ($VerbosePreference -eq 'Continue') {
+            Write-Information "" -InformationAction Continue
+            Write-Information "For more information: https://github.com/khannaveed2020/NetTrace" -InformationAction Continue
         }
-        'Uninstall' {
-            if ($Uninstall) {
-                Uninstall-NetTraceWindowsService | Out-Null
-            }
-        }
-        'Start' {
-            if ($Start) {
-                Start-NetTraceServiceRunner -TracePath $Path -MaxFiles $MaxFiles -MaxSizeMB $MaxSizeMB -LogOutput:$LogOutput -EnableLogging:$EnableLogging | Out-Null
-            }
-        }
-        'Stop' {
-            if ($Stop) {
-                Stop-NetTraceServiceRunner | Out-Null
-            }
-        }
-        'Status' {
-            Show-NetTraceServiceStatus | Out-Null
-        }
-        default {
-            Show-NetTraceServiceStatus | Out-Null
-        }
+
+    } catch {
+        Write-Error "Fatal error in NetTrace Service Runner: $($_.Exception.Message)"
+        exit 1
     }
-
-    Write-Information "" -InformationAction Continue
-    Write-Information "For more information: https://github.com/khannaveed2020/NetTrace" -InformationAction Continue
-
-} catch {
-    Write-Error "Fatal error in NetTrace Service Runner: $($_.Exception.Message)"
-    exit 1
-} 
+}
