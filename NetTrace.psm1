@@ -166,8 +166,7 @@ function NetTrace {
 
         # Handle stop request
         if ($Stop) {
-            Stop-NetTraceCapture
-            return
+            return Stop-NetTraceCapture
         }
 
         # Validate parameters
@@ -922,7 +921,7 @@ function Stop-NetTraceCapture {
         }
 
         if ($script:MonitorFlag) {
-            $script:MonitorFlag.Set()
+            $script:MonitorFlag.Set() | Out-Null
             $script:MonitorFlag.Dispose()
             $script:MonitorFlag = $null
         }
