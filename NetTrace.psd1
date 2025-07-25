@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.7'
+    ModuleVersion = '1.3.8'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -93,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.3.7: COMPREHENSIVE DOCUMENTATION UPDATE - Enhanced README.md with complete persistence mode guide, service monitoring commands, troubleshooting procedures, and real-world enterprise examples. Includes all v1.3.6 features.'
+            ReleaseNotes = 'v1.3.8: NSSM PATH HANDLING FIX - Fixed critical NSSM path handling issue that was causing service installation failures in v1.3.7. The fix ensures proper NSSM path validation and execution context when dot-sourcing the service runner script. Includes all v1.3.7 documentation enhancements and clear-output improvements.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

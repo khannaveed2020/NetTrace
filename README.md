@@ -860,24 +860,11 @@ The `NetTrace` command returns a hashtable with the following properties:
 
 ## Version History
 
-- **v1.3.7**: Enhanced Documentation
-  - **Comprehensive Monitoring Guide**: Complete monitoring section with real-time dashboards
-  - **Restructured Documentation**: Logical flow from synopsis through installation, usage, and monitoring
-  - **Advanced Monitoring Scripts**: PowerShell profile integration and troubleshooting procedures
-  - **Cross-Session Monitoring**: Multi-user session testing and enterprise deployment examples
-- **v1.3.6**: Enhanced Documentation
-  - **Comprehensive Monitoring Guide**: Complete monitoring section with real-time dashboards
-  - **Restructured Documentation**: Logical flow from synopsis through installation, usage, and monitoring
-  - **Advanced Monitoring Scripts**: PowerShell profile integration and troubleshooting procedures
-  - **Cross-Session Monitoring**: Multi-user session testing and enterprise deployment examples
-  - **v1.3.5**: Production-Ready Persistence with Enhanced Reliability
-  - **CRITICAL FIX**: Resolved parameter scoping issue where dot-sourcing NetTrace-ServiceRunner.ps1 overwrote function parameters
-  - **Enhanced Service State Management**: Robust NSSM service state checking with automatic recovery from PAUSED states
-  - **Comprehensive Parameter Validation**: Added validation to prevent empty configuration values that caused service failures
-  - **Race Condition Handling**: Prevents "already running" errors and service conflicts during start/stop operations
-  - **Cross-User Session Support**: Service monitoring and control works from any user session
-  - **Detailed Error Diagnostics**: Enhanced error reporting with service log analysis and recovery suggestions
-  - **One-Command Reliability**: Single command operation now works without manual intervention or service state conflicts
+- **v1.3.8** (2025-07-25): NSSM Path Handling Fix
+  - Fixed critical NSSM path handling issue that was causing service installation failures
+  - Added `Invoke-NSSM` helper function for proper NSSM execution context
+  - Ensures proper path validation and execution when dot-sourcing service runner script
+  - Includes all v1.3.7 documentation enhancements and clear-output improvements
 
 ## Requirements
 
