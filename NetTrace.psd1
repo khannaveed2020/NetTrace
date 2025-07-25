@@ -3,7 +3,7 @@
     RootModule = 'NetTrace.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.3.6'
+    ModuleVersion = '1.3.7'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core', 'Desktop')
@@ -93,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.3.6: COMPREHENSIVE DOCUMENTATION UPDATE - Enhanced README.md with complete persistence mode guide, service monitoring commands, troubleshooting procedures, and real-world enterprise examples. Added Quick Reference section, multi-user session testing examples, production deployment scenarios, and comprehensive version history. No code changes - this is a documentation enhancement release that makes NetTrace v1.3.5 enterprise features more accessible to users. Includes detailed NSSM service monitoring, cross-user session examples, and complete troubleshooting guide.'
+            ReleaseNotes = 'v1.3.7: COMPREHENSIVE DOCUMENTATION UPDATE - Enhanced README.md with complete persistence mode guide, service monitoring commands, troubleshooting procedures, and real-world enterprise examples. Includes all v1.3.6 features.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

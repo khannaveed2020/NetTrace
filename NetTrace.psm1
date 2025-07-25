@@ -11,7 +11,7 @@
 
 .NOTES
     File Name      : NetTrace.psm1
-    Version        : 1.3.6
+    Version        : 1.3.7
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.
@@ -621,7 +621,7 @@ function Start-NetTraceServicePersistence {
                 LogOutput = [bool]$LogOutput
                 EnableLogging = [bool]$EnableLogging
                 StartTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-                ServiceVersion = "1.3.6"
+                ServiceVersion = "1.3.7"
             }
 
             $serviceConfigFile = "$serviceStateDir\service_config.json"
