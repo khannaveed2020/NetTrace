@@ -18,7 +18,7 @@
 
 .NOTES
     File Name      : NetTrace-Service.ps1
-    Version        : 1.3.8
+    Version        : 1.4.0
     Author         : Naveed Khan
     Company        : Hogwarts
     Copyright      : (c) 2025 Naveed Khan. All rights reserved.

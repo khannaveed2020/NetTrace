@@ -234,10 +234,11 @@ function Invoke-NSSM {
     }
     
     # Ensure path is properly quoted
-    $quotedPath = "`"$NssmPath`""
+#    $quotedPath = "`"$NssmPath`""
     
     # Execute NSSM with proper path handling
-    $result = & $quotedPath $Arguments 2>&1
+   # $result = & $quotedPath $Arguments 2>&1
+   $result = & $NssmPath @Arguments 2>&1
     return $result
 }
 

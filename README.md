@@ -858,14 +858,6 @@ The `NetTrace` command returns a hashtable with the following properties:
 | **Paused** | Service encountered an error | Check logs and restart |
 | **Not Installed** | Service not yet installed | First use will auto-install |
 
-## Version History
-
-- **v1.3.8** (2025-07-25): NSSM Path Handling Fix
-  - Fixed critical NSSM path handling issue that was causing service installation failures
-  - Added `Invoke-NSSM` helper function for proper NSSM execution context
-  - Ensures proper path validation and execution when dot-sourcing service runner script
-  - Includes all v1.3.7 documentation enhancements and clear-output improvements
-
 ## Requirements
 
 - **Windows 10/11** with netsh utility
