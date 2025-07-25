@@ -597,138 +597,98 @@ When troubleshooting or starting fresh, use this comprehensive clean slate proce
 # NetTrace Complete Clean Slate Procedure
 # ========================================
 
-Write-Host "=== NetTrace Clean Slate Reset ===" -ForegroundColor Cyan
-Write-Host "This will completely remove all NetTrace components" -ForegroundColor Yellow
+# Complete Service Reset Script
+Write-Host "=== Complete NetTrace Service Reset ===" -ForegroundColor Cyan
 
-# Stop any running NetTrace services
-Write-Host "`n1. Stopping NetTrace services..." -ForegroundColor Green
-nssm stop NetTraceService 2>$null
-Stop-Service -Name NetTraceService -Force -ErrorAction SilentlyContinue
-
-# Remove NSSM service completely
-Write-Host "2. Removing NSSM service..." -ForegroundColor Green
-nssm remove NetTraceService confirm 2>$null
-
-# Alternative removal if NSSM fails
-Write-Host "3. Alternative service removal..." -ForegroundColor Green
-sc delete NetTraceService 2>$null
-
-# Remove all NetTrace service data and configuration
-Write-Host "4. Removing service data and configuration..." -ForegroundColor Green
-Remove-Item "C:\ProgramData\NetTrace" -Recurse -Force -ErrorAction SilentlyContinue
-
-# Remove any temporary NSSM installations
-Write-Host "6. Removing temporary NSSM files..." -ForegroundColor Green
-Remove-Item "$env:TEMP\nssm*" -Recurse -Force -ErrorAction SilentlyContinue
-
-# Clean registry
-$registryPaths = @(
-"HKLM:\SYSTEM\CurrentControlSet\Services\NetTraceService",
-"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\NetTrace")
-foreach ($regPath in $registryPaths)
-{
-    if (Test-Path $regPath)
-    {
-        Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Host "Removed registry: $regPath"
-    }
-}
-Write-Host "Cleanup completed!" -ForegroundColor Green
-
-# Uninstall all versions of NetTrace module
-Write-Host "7. Uninstalling NetTrace modules..." -ForegroundColor Green
-Get-Module NetTrace -ListAvailable | ForEach-Object { 
-    Write-Host "  Removing NetTrace version $($_.Version)" -ForegroundColor Yellow
-    Uninstall-Module -Name NetTrace -RequiredVersion $_.Version -Force -ErrorAction SilentlyContinue
-}
-
-# Force remove any remaining NetTrace modules
-Write-Host "8. Force removing remaining modules..." -ForegroundColor Green
-Uninstall-Module NetTrace -AllVersions -Force -ErrorAction SilentlyContinue
-
-# Remove imported NetTrace modules from current session
-Write-Host "9. Clearing session modules..." -ForegroundColor Green
-Remove-Module NetTrace -Force -ErrorAction SilentlyContinue
-
-
-
-# Clear PowerShell module cache
-Write-Host "10. Clearing module cache..." -ForegroundColor Green
-$env:PSModulePath -split ';' | ForEach-Object {
-    $netTracePath = Join-Path $_ "NetTrace"
-    if (Test-Path $netTracePath) {
-        Write-Host "  Removing cached NetTrace from: $netTracePath" -ForegroundColor Yellow
-        Remove-Item $netTracePath -Recurse -Force -ErrorAction SilentlyContinue
+# Stop all possible service instances
+Write-Host "1. Stopping all service instances..." -ForegroundColor Green
+$serviceNames = @("NetTraceService", "NetTrace", "NetTrace-Service")
+foreach ($serviceName in $serviceNames) {
+    try {
+        $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+        if ($service) {
+            Write-Host "  Stopping $serviceName..." -ForegroundColor Yellow
+            Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
+        }
+    } catch {
+        Write-Host "  Service $serviceName not found or already stopped" -ForegroundColor Gray
     }
 }
 
-# Verification
-Write-Host "`n=== Verification ===" -ForegroundColor Cyan
+Start-Sleep -Seconds 5
 
-# Verify no NetTrace services exist
-Write-Host "11. Checking for remaining services..." -ForegroundColor Green
-$services = Get-Service -Name "*NetTrace*" -ErrorAction SilentlyContinue
-if ($services) {
-    Write-Host "  WARNING: NetTrace services still exist:" -ForegroundColor Red
-    $services | Format-Table Name, Status, StartType
-} else {
-    Write-Host "  ✅ No NetTrace services found" -ForegroundColor Green
-}
+# Remove via multiple methods
+Write-Host "2. Removing services via multiple methods..." -ForegroundColor Green
 
-# Verify no NetTrace modules are loaded
-Write-Host "12. Checking for remaining modules..." -ForegroundColor Green
-$modules = Get-Module NetTrace -ListAvailable
-if ($modules) {
-    Write-Host "  WARNING: NetTrace modules still exist:" -ForegroundColor Red
-    $modules | Format-Table Name, Version, ModuleBase
-} else {
-    Write-Host "  ✅ No NetTrace modules found" -ForegroundColor Green
-}
-
-# Verify no configuration files exist
-# Final verification
-Write-Host "=== FINAL VERIFICATION ===" -ForegroundColor Green
-
-# Check for any remaining services
-$services = Get-Service -Name "*NetTrace*" -ErrorAction SilentlyContinue
-if ($services) {
-    Write-Host "❌ Remaining services found:" -ForegroundColor Red
-    $services | Format-Table -AutoSize
-} else {
-    Write-Host "✓ No NetTrace services found" -ForegroundColor Green
-}
-
-# Check for any remaining modules
-$modules = Get-Module -Name NetTrace -ListAvailable -ErrorAction SilentlyContinue
-if ($modules) {
-    Write-Host "❌ Remaining modules found:" -ForegroundColor Red
-    $modules | Format-Table -AutoSize
-} else {
-    Write-Host "✓ No NetTrace modules found" -ForegroundColor Green
-}
-
-# Check for any remaining files
-$files = @(
-    "C:\ProgramData\NetTrace",
-    "$env:USERPROFILE\Documents\WindowsPowerShell\Modules\NetTrace",
-    "$env:PROGRAMFILES\WindowsPowerShell\Modules\NetTrace"
+# Method 1: NSSM
+$nssmPaths = @(
+    "C:\ProgramData\NetTrace\NSSM\nssm.exe",
+    "C:\Windows\System32\nssm.exe",
+    "nssm.exe"
 )
 
-$allClean = $true
-foreach ($file in $files) {
-    if (Test-Path $file) {
-        Write-Host "❌ Remaining files: $file" -ForegroundColor Red
-        $allClean = $false
-    } else {
-        Write-Host "✓ Clean: $file" -ForegroundColor Green
+foreach ($nssmPath in $nssmPaths) {
+    if (Get-Command $nssmPath -ErrorAction SilentlyContinue) {
+        Write-Host "  Trying NSSM removal via $nssmPath..." -ForegroundColor Yellow
+        & $nssmPath stop "NetTraceService" 2>$null
+        Start-Sleep -Seconds 2
+        & $nssmPath remove "NetTraceService" confirm 2>$null
+        break
     }
 }
 
-if ($allClean) {
-    Write-Host "🎉 COMPLETE CLEANUP SUCCESSFUL!" -ForegroundColor Green
-    Write-Host "You can now install and test the new version." -ForegroundColor Green
+# Method 2: sc.exe
+Write-Host "  Trying sc.exe removal..." -ForegroundColor Yellow
+sc.exe stop "NetTraceService" 2>$null
+Start-Sleep -Seconds 2
+sc.exe delete "NetTraceService" 2>$null
+
+# Method 3: WMI
+Write-Host "  Trying WMI removal..." -ForegroundColor Yellow
+try {
+    $service = Get-WmiObject -Class Win32_Service -Filter "Name='NetTraceService'" -ErrorAction SilentlyContinue
+    if ($service) {
+        $service.Delete()
+        Write-Host "    WMI removal successful" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "    WMI removal failed" -ForegroundColor Red
+}
+
+# Method 4: Registry cleanup
+Write-Host "3. Cleaning registry entries..." -ForegroundColor Green
+$registryPaths = @(
+    "HKLM:\SYSTEM\CurrentControlSet\Services\NetTraceService",
+    "HKLM:\SYSTEM\CurrentControlSet\Services\NetTrace",
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\NetTrace"
+)
+
+foreach ($regPath in $registryPaths) {
+    if (Test-Path $regPath) {
+        Write-Host "  Removing registry: $regPath" -ForegroundColor Yellow
+        Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# Method 5: Force restart service manager
+Write-Host "4. Restarting service manager..." -ForegroundColor Green
+try {
+    Restart-Service -Name "DcomLaunch" -Force -ErrorAction SilentlyContinue
+} catch {
+    Write-Host "  Service manager restart skipped" -ForegroundColor Gray
+}
+
+Start-Sleep -Seconds 3
+
+# Final verification
+Write-Host "5. Final verification..." -ForegroundColor Green
+$finalCheck = Get-Service -Name "*NetTrace*" -ErrorAction SilentlyContinue
+if ($finalCheck) {
+    Write-Host "❌ Service still exists after all removal attempts:" -ForegroundColor Red
+    $finalCheck | Format-Table Name, Status, StartType
+    Write-Host "You may need to restart the system to complete removal." -ForegroundColor Yellow
 } else {
-    Write-Host "⚠️  Some items remain. Please review the warnings above." -ForegroundColor Yellow
+    Write-Host "✓ Service successfully removed!" -ForegroundColor Green
 }
 
 ```
