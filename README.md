@@ -472,7 +472,7 @@ Get-Content "C:\ProgramData\NetTrace\service_config.json" | ConvertFrom-Json | F
 # LogOutput     : True
 # EnableLogging : True
 # StartTime     : 2025-01-22 14:45:30
-# ServiceVersion: 1.3.6
+# ServiceVersion: 1.3.7
 ```
 
 #### Service Wrapper Verification
@@ -483,8 +483,8 @@ Get-Content "C:\ProgramData\NetTrace\NetTrace-Service.bat"
 # Expected content:
 # @echo off
 # REM NetTrace Service Wrapper
-# cd /d "C:\Program Files\WindowsPowerShell\Modules\NetTrace\1.3.6"
-# powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "C:\Program Files\WindowsPowerShell\Modules\NetTrace\1.3.6\NetTrace-Service.ps1" -ServiceMode
+# cd /d "C:\Program Files\WindowsPowerShell\Modules\NetTrace\1.3.7"
+# powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "C:\Program Files\WindowsPowerShell\Modules\NetTrace\1.3.7\NetTrace-Service.ps1" -ServiceMode
 # exit /b %ERRORLEVEL%
 ```
 
@@ -860,12 +860,17 @@ The `NetTrace` command returns a hashtable with the following properties:
 
 ## Version History
 
+- **v1.3.7**: Enhanced Documentation
+  - **Comprehensive Monitoring Guide**: Complete monitoring section with real-time dashboards
+  - **Restructured Documentation**: Logical flow from synopsis through installation, usage, and monitoring
+  - **Advanced Monitoring Scripts**: PowerShell profile integration and troubleshooting procedures
+  - **Cross-Session Monitoring**: Multi-user session testing and enterprise deployment examples
 - **v1.3.6**: Enhanced Documentation
   - **Comprehensive Monitoring Guide**: Complete monitoring section with real-time dashboards
   - **Restructured Documentation**: Logical flow from synopsis through installation, usage, and monitoring
   - **Advanced Monitoring Scripts**: PowerShell profile integration and troubleshooting procedures
   - **Cross-Session Monitoring**: Multi-user session testing and enterprise deployment examples
-- **v1.3.5**: Production-Ready Persistence with Enhanced Reliability
+  - **v1.3.5**: Production-Ready Persistence with Enhanced Reliability
   - **CRITICAL FIX**: Resolved parameter scoping issue where dot-sourcing NetTrace-ServiceRunner.ps1 overwrote function parameters
   - **Enhanced Service State Management**: Robust NSSM service state checking with automatic recovery from PAUSED states
   - **Comprehensive Parameter Validation**: Added validation to prevent empty configuration values that caused service failures
