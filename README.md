@@ -617,11 +617,6 @@ sc delete NetTraceService 2>$null
 Write-Host "4. Removing service data and configuration..." -ForegroundColor Green
 Remove-Item "C:\ProgramData\NetTrace" -Recurse -Force -ErrorAction SilentlyContinue
 
-# Clean any existing trace files from previous tests
-Write-Host "5. Cleaning test directories..." -ForegroundColor Green
-Remove-Item "C:\NetTrace-Tests" -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item "C:\NetworkTraces" -Recurse -Force -ErrorAction SilentlyContinue
-
 # Remove any temporary NSSM installations
 Write-Host "6. Removing temporary NSSM files..." -ForegroundColor Green
 Remove-Item "$env:TEMP\nssm*" -Recurse -Force -ErrorAction SilentlyContinue
@@ -640,6 +635,8 @@ Uninstall-Module NetTrace -AllVersions -Force -ErrorAction SilentlyContinue
 # Remove imported NetTrace modules from current session
 Write-Host "9. Clearing session modules..." -ForegroundColor Green
 Remove-Module NetTrace -Force -ErrorAction SilentlyContinue
+
+
 
 # Clear PowerShell module cache
 Write-Host "10. Clearing module cache..." -ForegroundColor Green
@@ -675,27 +672,52 @@ if ($modules) {
 }
 
 # Verify no configuration files exist
-Write-Host "13. Checking configuration directories..." -ForegroundColor Green
-if (Test-Path "C:\ProgramData\NetTrace") {
-    Write-Host "  WARNING: NetTrace configuration still exists" -ForegroundColor Red
+# Final verification
+Write-Host "=== FINAL VERIFICATION ===" -ForegroundColor Green
+
+# Check for any remaining services
+$services = Get-Service -Name "*NetTrace*" -ErrorAction SilentlyContinue
+if ($services) {
+    Write-Host "❌ Remaining services found:" -ForegroundColor Red
+    $services | Format-Table -AutoSize
 } else {
-    Write-Host "  ✅ No configuration files found" -ForegroundColor Green
+    Write-Host "✓ No NetTrace services found" -ForegroundColor Green
 }
 
-# Verify no test directories exist
-Write-Host "14. Checking test directories..." -ForegroundColor Green
-$testDirs = @("C:\NetTrace-Tests", "C:\NetworkTraces")
-$remainingDirs = $testDirs | Where-Object { Test-Path $_ }
-if ($remainingDirs) {
-    Write-Host "  WARNING: Test directories still exist: $($remainingDirs -join ', ')" -ForegroundColor Red
+# Check for any remaining modules
+$modules = Get-Module -Name NetTrace -ListAvailable -ErrorAction SilentlyContinue
+if ($modules) {
+    Write-Host "❌ Remaining modules found:" -ForegroundColor Red
+    $modules | Format-Table -AutoSize
 } else {
-    Write-Host "  ✅ No test directories found" -ForegroundColor Green
+    Write-Host "✓ No NetTrace modules found" -ForegroundColor Green
 }
 
-Write-Host "`n=== Clean Slate Complete ===" -ForegroundColor Cyan
-Write-Host "You can now perform a fresh NetTrace installation" -ForegroundColor Green
+# Check for any remaining files
+$files = @(
+    "C:\ProgramData\NetTrace",
+    "$env:USERPROFILE\Documents\WindowsPowerShell\Modules\NetTrace",
+    "$env:PROGRAMFILES\WindowsPowerShell\Modules\NetTrace"
+)
+
+$allClean = $true
+foreach ($file in $files) {
+    if (Test-Path $file) {
+        Write-Host "❌ Remaining files: $file" -ForegroundColor Red
+        $allClean = $false
+    } else {
+        Write-Host "✓ Clean: $file" -ForegroundColor Green
+    }
+}
+
+if ($allClean) {
+    Write-Host "🎉 COMPLETE CLEANUP SUCCESSFUL!" -ForegroundColor Green
+    Write-Host "You can now install and test the new version." -ForegroundColor Green
+} else {
+    Write-Host "⚠️  Some items remain. Please review the warnings above." -ForegroundColor Yellow
+}
+
 ```
-
 ### **Quick Clean Slate (One-Liner)**
 
 For a fast reset without verbose output:
