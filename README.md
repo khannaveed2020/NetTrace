@@ -621,6 +621,20 @@ Remove-Item "C:\ProgramData\NetTrace" -Recurse -Force -ErrorAction SilentlyConti
 Write-Host "6. Removing temporary NSSM files..." -ForegroundColor Green
 Remove-Item "$env:TEMP\nssm*" -Recurse -Force -ErrorAction SilentlyContinue
 
+# Clean registry
+$registryPaths = @(
+"HKLM:\SYSTEM\CurrentControlSet\Services\NetTraceService",
+"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\NetTrace")
+foreach ($regPath in $registryPaths)
+{
+    if (Test-Path $regPath)
+    {
+        Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "Removed registry: $regPath"
+    }
+}
+Write-Host "Cleanup completed!" -ForegroundColor Green
+
 # Uninstall all versions of NetTrace module
 Write-Host "7. Uninstalling NetTrace modules..." -ForegroundColor Green
 Get-Module NetTrace -ListAvailable | ForEach-Object { 
