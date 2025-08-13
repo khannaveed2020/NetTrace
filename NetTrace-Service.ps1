@@ -99,7 +99,7 @@ function Set-ServiceConfig {
             LogOutput = $LogOutput
             EnableLogging = $EnableLogging
             StartTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-            ServiceVersion = "1.3.8"
+            ServiceVersion = "1.4.0"
         }
 
         try {

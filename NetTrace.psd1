@@ -93,7 +93,7 @@
             Tags = @('Network', 'Tracing', 'Netsh', 'Windows', 'ETL', 'Monitoring', 'Diagnostics', 'Performance', 'Troubleshooting', 'Admin')
             LicenseUri = 'https://github.com/khannaveed2020/NetTrace/blob/main/LICENSE'
             ProjectUri = 'https://github.com/khannaveed2020/NetTrace'
-            ReleaseNotes = 'v1.3.8: NSSM PATH HANDLING FIX - Fixed critical NSSM path handling issue that was causing service installation failures in v1.3.7. The fix ensures proper NSSM path validation and execution context when dot-sourcing the service runner script. Includes all v1.3.7 documentation enhancements and clear-output improvements.'
+            ReleaseNotes = 'v1.4.0: Version alignment across module and service; improved console quieting via netsh output suppression and logging options; Windows Service loop refinements (direct monitoring without jobs); preserved NSSM path handling stability; documentation updates.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()
