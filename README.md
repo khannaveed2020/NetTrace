@@ -8,45 +8,11 @@ NetTrace solves the fundamental limitations of native `netsh trace` by enabling 
 
 While `netsh trace` is powerful, it has significant drawbacks for enterprise use:
 
-- **Blocking operation** - Console locks up during capture
-- **Manual file management** - No automatic rotation or cleanup
-- **No persistence** - Stops when user logs out or system reboots
-- **Poor user experience** - Requires CTRL+C to stop, no progress visibility
-- **Limited logging** - No activity tracking or troubleshooting data
+- **No realtime monitor** - No option to realtime monitoring of running traces and offers no progress visibility.
+- **No multi file rotation for persistant capture** - No automatic multi-file rotation or cleanup for persistant.
+- **Limited logging** - No activity tracking or troubleshooting data.
 
 NetTrace transforms `netsh trace` into an enterprise-grade tool with automatic file single or `multiple file` rotation, background operation, comprehensive logging, and true persistence that survives user sessions and system reboots.
-
-## Use Case & Problem Solved
-
-### The Native NetSh Trace Problem
-
-Native `netsh trace` has these limitations:
-
-```powershell
-# Native netsh trace - BLOCKS console, manual file management
-netsh trace start capture=yes tracefile=C:\traces\trace.etl maxsize=100
-
-# Console is now locked until you press CTRL+C
-# No automatic file rotation
-# No persistence across sessions
-# No activity logging
-# No progress visibility
-```
-
-### NetTrace Solution
-
-NetTrace provides a complete enterprise solution:
-
-```powershell
-# NetTrace - Non-blocking, automatic rotation, persistence
-NetTrace -File 5 -FileSize 100 -Path "C:\NetworkTraces" -Persistence $true -Log
-
-# Console immediately available for other work
-# Automatic file rotation (keeps 5 files, 100MB each)
-# Survives user logout and system reboot
-# Comprehensive activity logging
-# Real-time progress monitoring
-```
 
 ## Installation
 
