@@ -1,10 +1,12 @@
 # NetTrace PowerShell Module
 
-A professional PowerShell module for Windows network tracing using the native `netsh trace` utility with circular file management, non-blocking background operation, and enterprise-grade persistence capabilities.
+NetTrace is a lightweight network tracing utility built on top of native `netsh trace` utility with circular file management, non-blocking background operation, and enterprise-grade persistence capabilities.
 
 ## Synopsis
 
-NetTrace solves the fundamental limitations of native `netsh trace` by providing a professional, production-ready network tracing solution. While `netsh trace` is powerful, it has significant drawbacks for enterprise use:
+NetTrace solves the fundamental limitations of native `netsh trace` by enabling both basic and persistent network captures with multiple file rotation, making it ideal for long-running diagnostics and customer scenarios where tools like `NetMon` or `Wireshark` are not preferred for inconsistant and intermittant network failures.
+
+While `netsh trace` is powerful, it has significant drawbacks for enterprise use:
 
 - **Blocking operation** - Console locks up during capture
 - **Manual file management** - No automatic rotation or cleanup
@@ -12,7 +14,7 @@ NetTrace solves the fundamental limitations of native `netsh trace` by providing
 - **Poor user experience** - Requires CTRL+C to stop, no progress visibility
 - **Limited logging** - No activity tracking or troubleshooting data
 
-NetTrace transforms `netsh trace` into an enterprise-grade tool with automatic file rotation, background operation, comprehensive logging, and true persistence that survives user sessions and system reboots.
+NetTrace transforms `netsh trace` into an enterprise-grade tool with automatic file single or `multiple file` rotation, background operation, comprehensive logging, and true persistence that survives user sessions and system reboots.
 
 ## Use Case & Problem Solved
 
